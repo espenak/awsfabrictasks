@@ -1,0 +1,6 @@
+AUTH = {}
+PROFILES = {}
+DEFAULT_REGION = 'eu-west-1'
+CONFIG_DIR = 'config'
+AMI = {}
+EC2_DEFAULT_INSTANCE = None
