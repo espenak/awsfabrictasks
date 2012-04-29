@@ -13,3 +13,8 @@ EC2_SUPPORT_NAMETAG_LOOKUP = True
 
 EC2_CACHE_FILE = '.awsfab_ec2cache'
 EC2_REGIONS = ['eu-west-1']
+
+# Default ssh user if the ``awsfab_ssh_user`` tag is not set
+EC2_INSTANCE_DEFAULT_SSHUSER = 'root'
+
+EC2_KEYDIR = 'keys'
