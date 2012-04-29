@@ -154,8 +154,9 @@ def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
 @task
 def ec2_login():
     """
-    Use ssh to log into the given ``instancename`` using the public_dns,
-    key_name and ssh_user configured for the instance.
+    Log into the host specified by --hosts, --ec2names or --ec2ids.
+
+    Aborts if more than one host is specified.
     """
     if len(env.all_hosts) != 1:
         abort('ec2_login only works with exactly one host. Given hosts: {0}'.format(repr(env.all_hosts)))
