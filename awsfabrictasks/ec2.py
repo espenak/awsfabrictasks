@@ -9,6 +9,16 @@ from fabric.api import task, abort, local, env
 from .conf import awsfab_settings
 
 
+def parse_instanceid(instanceid_with_optional_region):
+    if ':' in instanceid_with_optional_region:
+        region, instanceid = instanceid_with_optional_region.split(':', 1)
+    else:
+        instanceid = instanceid_with_optional_region
+        region = awsfab_settings.DEFAULT_REGION
+    return region, instanceid
+
+
+
 class Ec2InstanceWrapper(object):
     def __init__(self, instance):
         self.instance = instance
@@ -66,10 +76,7 @@ class Ec2InstanceWrapper(object):
 
     @classmethod
     def get_by_instanceid(cls, instanceid):
-        if ':' in instanceid:
-            region, instanceid = instanceid.split(':', 1)
-        else:
-            region = awsfab_settings.DEFAULT_REGION
+        region, instanceid = parse_instanceid(instanceid)
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
             raise ValueError('Could not connect to region: {region}'.format(**vars()))
@@ -85,6 +92,42 @@ class Ec2InstanceWrapper(object):
     def get_from_host_string(cls):
         return env.ec2instances[env.host_string]
 
+
+
+class WaitForStateError(Exception):
+    """
+    Raises when :func:`wait_for_state` times out.
+    """
+
+
+def wait_for_state(instanceid, state_name, sleep_intervals=[20, 5], last_sleep_repeat=20):
+
+    from time import sleep
+
+    region, instanceid = parse_instanceid(instanceid)
+    sleep_intervals.extend([sleep_intervals[-1] for x in xrange(last_sleep_repeat)])
+    max_wait_sec = sum(sleep_intervals)
+    print 'Waiting for {instanceid} to change state to: "{state_name}. Will try for {max_wait_sec}s.".'.format(**vars())
+
+    sleep_intervals_len = len(sleep_intervals)
+    for index, sleep_sec in enumerate(sleep_intervals):
+        instance = Ec2InstanceWrapper.get_by_instanceid(instanceid)
+        current_state_name = instance['state']
+        if current_state_name == state_name:
+            print '.. OK'
+            return
+
+        index_n1 = index + 1
+        print '.. Current state: "{current_state_name}". Next poll ({index_n1}/{sleep_intervals_len}) for "{state_name}"-state in {sleep_sec}s.'.format(**vars())
+        sleep(sleep_sec)
+    raise WaitForStateError('Desired state, "{state_name}", not achieved in {max_wait_sec}s.'.format(**vars()))
+
+
+def wait_for_stopped_state(instanceid, **kwargs):
+    wait_for_state(instanceid, 'stopped', **kwargs)
+
+def wait_for_running_state(instanceid, **kwargs):
+    wait_for_state(instanceid, 'running', **kwargs)
 
 
 def _print_instance(instance, attrnames=None, indentspaces=3):
@@ -116,20 +159,27 @@ def ec2_launch_instance(configname, name):
 
 
 @task
-def ec2_start_instance():
+def ec2_start_instance(nowait=False):
     instance = Ec2InstanceWrapper.get_from_host_string()
-    stopped = instance.instance.start()
-    print ('Starting: {id}. This is an asynchronous operation. Use '
-            '``ec2_list_instances`` or the aws dashboard to check the status of '
-            'the operation.').format(id=instance['id'])
+    instance.instance.start()
+    if nowait:
+        print ('Starting: {id}. This is an asynchronous operation. Use '
+                '``ec2_list_instances`` or the aws dashboard to check the status of '
+                'the operation.').format(id=instance['id'])
+    else:
+        wait_for_running_state(instance['id'])
 
 @task
-def ec2_stop_instance():
+def ec2_stop_instance(nowait=False):
     instance = Ec2InstanceWrapper.get_from_host_string()
-    stopped = instance.instance.stop()
-    print ('Stopping: {id}. This is an asynchronous operation. Use '
-            '``ec2_list_instances`` or the aws dashboard to check the status of '
-            'the operation.').format(id=instance['id'])
+    instance.instance.stop()
+    if nowait:
+        print ('Stopping: {id}. This is an asynchronous operation. Use '
+                '``ec2_list_instances`` or the aws dashboard to check the status of '
+                'the operation.').format(id=instance['id'])
+    else:
+        wait_for_stopped_state(instance['id'])
+
 
 @task
 def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
