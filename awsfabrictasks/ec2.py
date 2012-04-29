@@ -45,6 +45,8 @@ class Ec2InstanceWrapper(object):
         else:
             region = awsfab_settings.DEFAULT_REGION
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
+        if not connection:
+            raise ValueError('Could not connect to region: {region}'.format(**vars()))
         reservations = connection.get_all_instances(filters={'tag:Name': name})
         if len(reservations) == 0:
             raise LookupError('No ec2 instances with tag:Name={0}'.format(name))
@@ -62,6 +64,8 @@ class Ec2InstanceWrapper(object):
         else:
             region = awsfab_settings.DEFAULT_REGION
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
+        if not connection:
+            raise ValueError('Could not connect to region: {region}'.format(**vars()))
         reservations = connection.get_all_instances([instanceid])
         if len(reservations) == 0:
             raise LookupError('No ec2 instances with instanceid={0}'.format(instanceid))
@@ -73,38 +77,6 @@ class Ec2InstanceWrapper(object):
     @classmethod
     def get_from_host_string(cls):
         return env.ec2instances[env.host_string]
-
-
-@task
-def ting():
-    #instance = Ec2InstanceWrapper.get_by_instanceid('i-e150bfa9')
-    #print instance, instance['tags'], instance.get_ssh_uri()
-    print env.all_hosts
-    print Ec2InstanceWrapper.get_from_host_string()
-
-
-
-
-def get_ec2instance_uri(conf):
-    ssh_user = conf.get('ssh_user', 'root')
-    public_dns = conf['public_dns']
-    return '{ssh_user}@{public_dns}'.format(**vars())
-
-def prompt_for_ec2instancename():
-    print 'Please select an EC2 instance (from awsfab_settings.EC2_INSTANCES):'
-    for name in awsfab_settings.EC2_INSTANCES:
-        print '-', name
-    default = awsfab_settings.EC2_DEFAULT_INSTANCE
-    name = raw_input('Enter name [{0}]: '.format(default)).strip() or default
-    if not name:
-        abort('Name is required.')
-    return name
-
-def get_ec2instanceconf(name):
-    try:
-        return awsfab_settings.EC2_INSTANCES[name]
-    except KeyError:
-        abort('"{name}" not in awsfab_settings.EC2_INSTANCES.'.format(name=name))
 
 
 
