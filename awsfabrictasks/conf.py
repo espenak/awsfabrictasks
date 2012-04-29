@@ -40,17 +40,6 @@ class Settings(object):
         """
         pprint(self.as_dict())
 
-    #def get_key_filenames(self, key_name):
-        #"""
-        #Search for ``<key_name>.pem`` in awsfab_settings.KEYPAIR_PATH, and return a
-        #list of all of the files we find.
-        #"""
-        #filenames = []
-        #for dirpath in self.KEYPAIR_PATH:
-            #filename = join(expanduser(dirpath), key_name) + '.pem'
-            #if exists(filename):
-                #filenames.append(filename)
-        #return filenames
 
 awsfab_settings = Settings()
 
