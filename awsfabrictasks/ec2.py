@@ -1,12 +1,12 @@
 """
 General tasks for AWS management.
 """
-from fabric.api import task, abort, local, env
+from os.path import exists, join, expanduser, abspath
 from pprint import pformat
 from boto.ec2 import connect_to_region
+from fabric.api import task, abort, local, env
 
 from .conf import awsfab_settings
-from .utils import format_keypairs_for_ssh_options
 
 
 class Ec2InstanceWrapper(object):
@@ -23,6 +23,13 @@ class Ec2InstanceWrapper(object):
         user = self['tags'].get('awsfab-ssh-user', awsfab_settings.EC2_INSTANCE_DEFAULT_SSHUSER)
         host = self['public_dns_name']
         return '{user}@{host}'.format(**vars())
+
+    def get_ssh_key_filename(self):
+        for dirpath in awsfab_settings.KEYPAIR_PATH:
+            filename = abspath(join(expanduser(dirpath), self.instance.key_name + '.pem'))
+            if exists(filename):
+                return filename
+        raise LookupError('Could not find {key_name} in awsfab_settings.')
 
     def add_instance_to_env(self):
         """
@@ -94,12 +101,9 @@ def _print_instance(instance, attrnames=None, indentspaces=3):
 
 
 @task
-def ec2_launch_instance(configname):
+def ec2_launch_instance(configname, name):
     """
     Launch new EC2 instance.
-
-    ``ec2_launch_instance:<configname>``, where ``configname`` is a key in
-    ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
     """
     conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
     connection = connect_to_region(region_name=conf['region'], **awsfab_settings.AUTH)
@@ -146,7 +150,7 @@ def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
             attrnames = None
             if not full:
                 attrnames = ['state', 'instance_type', 'ip_address',
-                             'dns_name', 'key_name', 'tags', 'placement']
+                             'public_dns_name', 'key_name', 'tags', 'placement']
             print '      - id:', instance.id
             _print_instance(instance, attrnames=attrnames, indentspaces=11)
 
@@ -160,7 +164,8 @@ def ec2_login():
     """
     if len(env.all_hosts) != 1:
         abort('ec2_login only works with exactly one host. Given hosts: {0}'.format(repr(env.all_hosts)))
-    host = env.host_string
-    keys = format_keypairs_for_ssh_options()
-    cmd = 'ssh {keys} {host}'.format(**vars())
+    instance = Ec2InstanceWrapper.get_from_host_string()
+    host = instance.get_ssh_uri()
+    key_filename = instance.get_ssh_key_filename()
+    cmd = 'ssh -i {key_filename} {host}'.format(**vars())
     local(cmd)
