@@ -3,10 +3,10 @@ from fabric.decorators import _wrap_as_new
 from fabric.api import settings
 
 from .conf import awsfab_settings
-from .ec2 import get_ec2instance_uri, get_ec2instanceconf
+from .ec2 import Ec2InstanceWrapper
 
 
-def ec2instance(instancename):
+def ec2instance(nametag=None, instanceid=None):
     """
     Wraps the decorated function just as if it had been decorated with::
 
@@ -14,10 +14,9 @@ def ec2instance(instancename):
 
     The settings are from ``awsfab_settings.EC2_INSTANCES[instancename]``.
     """
-    conf = get_ec2instanceconf(instancename)
-    key_name = conf['key_name']
-    key_filenames = awsfab_settings.get_key_filenames(key_name)
-    ssh_uri = get_ec2instance_uri(conf)
+    instance = Ec2InstanceWrapper.get_by_nametag(nametag)
+    ssh_uri = instance.get_ssh_uri()
+    key_filenames = awsfab_settings.get_key_filenames(instance['key_name'])
     def outer(func):
         @wraps(func)
         def inner(*args, **kwargs):
