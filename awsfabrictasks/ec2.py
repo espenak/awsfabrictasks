@@ -41,9 +41,9 @@ class Ec2InstanceWrapper(object):
         env['ec2instances'][self.get_ssh_uri()] = self
         if not env.key_filename:
             env.key_filename = []
-        for key in awsfab_settings.get_key_filenames(self.instance.key_name):
-            if not key in env.key_filename:
-                env.key_filename.append(key)
+        key_filename = self.get_ssh_key_filename()
+        if not key_filename in env.key_filename:
+            env.key_filename.append(key_filename)
 
     @classmethod
     def get_by_nametag(cls, name):
