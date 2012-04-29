@@ -161,9 +161,12 @@ def _print_instance(instance, full=False, indentspaces=3):
     #"""
 
 @task
-def ec2_add_tag(tagname, value):
+def ec2_add_tag(tagname, value=''):
     """
-    ``ec2_add_tag:tagname,value``. Add tag to EC2 instance. Fails if tag already exists.
+    Add tag to EC2 instance. Fails if tag already exists.
+
+    :param tagname: Name of the tag to set (required).
+    :param value: Value to set the tag to. Default to empty string.
     """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     if tagname in instancewrapper.instance.tags:
@@ -172,9 +175,12 @@ def ec2_add_tag(tagname, value):
     instancewrapper.instance.add_tag(tagname, value)
 
 @task
-def ec2_set_tag(tagname, value):
+def ec2_set_tag(tagname, value=''):
     """
-    ``ec2_set_tag:tagname,value``. Set tag on EC2 instance. Overwrites value if tag exists.
+    Set tag on EC2 instance. Overwrites value if tag exists.
+
+    :param tagname: Name of the tag to set (required).
+    :param value: Value to set the tag to. Default to empty string.
     """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     instancewrapper.instance.add_tag(tagname, value)
@@ -182,7 +188,9 @@ def ec2_set_tag(tagname, value):
 @task
 def ec2_remove_tag(tagname):
     """
-    ``ec2_remove_tag:tagname``. Remove tag from EC2 instance. Fails if tag does not exist.
+    Remove tag from EC2 instance. Fails if tag does not exist.
+
+    :param tagname: Name of the tag to remove (required).
     """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     if not tagname in instancewrapper.instance.tags:
@@ -196,6 +204,10 @@ def ec2_remove_tag(tagname):
 def ec2_launch_instance(configname, name):
     """
     Launch new EC2 instance.
+
+    :param configname: Name of the configuration in
+        ``awsfab_settings.EC2_LAUNCH_CONFIGS`` (required)
+    :param name: The name to tag the EC2 instance with (required)
     """
     conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
     connection = connect_to_region(region_name=conf['region'], **awsfab_settings.AUTH)
@@ -211,6 +223,12 @@ def ec2_launch_instance(configname, name):
 
 @task
 def ec2_start_instance(nowait=False):
+    """
+    Start EC2 instance.
+
+    :param nowait: Set to ``True`` to let the EC2 instance start in the
+        background instead of waiting for it to start. Defaults to ``False``.
+    """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     instancewrapper.instance.start()
     if nowait:
@@ -222,6 +240,12 @@ def ec2_start_instance(nowait=False):
 
 @task
 def ec2_stop_instance(nowait=False):
+    """
+    Stop EC2 instance.
+
+    :param nowait: Set to ``True`` to let the EC2 instance stop in the
+        background instead of waiting for it to start. Defaults to ``False``.
+    """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     instancewrapper.instance.stop()
     if nowait:
@@ -233,14 +257,25 @@ def ec2_stop_instance(nowait=False):
 
 @task
 def ec2_print_instance(full=False):
+    """
+    Print EC2 instance info.
+
+    :param full: Print all attributes, or just the most useful ones? Defaults
+        to ``False``.
+    """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     print 'Instance:', instancewrapper['id']
     _print_instance(instancewrapper.instance, full=full)
 
 @task
-def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
+def ec2_list_instances(region=awsfab_settings.DEFAULT_REGION, full=False):
     """
-    List EC2 instances in a region. Use ``list_instances:full=true`` for more details.
+    List EC2 instances in a region (defaults to awsfab_settings.DEFAULT_REGION).
+
+    :param region: The region to list instances in. Defaults to
+        ``awsfab_settings.DEFAULT_REGION.
+    :param full: Print all attributes, or just the most useful ones? Defaults
+        to ``False``.
     """
     conn = connect_to_region(region_name=region, **awsfab_settings.AUTH)
 
