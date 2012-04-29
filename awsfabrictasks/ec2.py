@@ -29,6 +29,14 @@ class Ec2InstanceWrapper(object):
     def __str__(self):
         return 'Ec2InstanceWrapper:{0}'.format(self.instance)
 
+    def prettyname(self):
+        instanceid = self.instance.id
+        name = self.instance.tags.get('Name')
+        if name:
+            return '{instanceid} (name={name})'.format(**vars())
+        else:
+            return instanceid
+
     def get_ssh_uri(self):
         user = self['tags'].get('awsfab-ssh-user', awsfab_settings.EC2_INSTANCE_DEFAULT_SSHUSER)
         host = self['public_dns_name']
@@ -111,8 +119,8 @@ def wait_for_state(instanceid, state_name, sleep_intervals=[20, 5], last_sleep_r
 
     sleep_intervals_len = len(sleep_intervals)
     for index, sleep_sec in enumerate(sleep_intervals):
-        instance = Ec2InstanceWrapper.get_by_instanceid(instanceid)
-        current_state_name = instance['state']
+        instancewrapper = Ec2InstanceWrapper.get_by_instanceid(instanceid)
+        current_state_name = instancewrapper['state']
         if current_state_name == state_name:
             print '.. OK'
             return
@@ -130,10 +138,13 @@ def wait_for_running_state(instanceid, **kwargs):
     wait_for_state(instanceid, 'running', **kwargs)
 
 
-def _print_instance(instance, attrnames=None, indentspaces=3):
+def _print_instance(instance, full=False, indentspaces=3):
     indent = ' ' * indentspaces
-    if not attrnames:
+    if full:
         attrnames = sorted(instance.__dict__.keys())
+    else:
+        attrnames = ['state', 'instance_type', 'ip_address',
+                     'public_dns_name', 'key_name', 'tags', 'placement']
     for attrname in attrnames:
         if attrname.startswith('_'):
             continue
@@ -141,6 +152,44 @@ def _print_instance(instance, attrnames=None, indentspaces=3):
         if not isinstance(value, (str, unicode, bool, int)):
             value = pformat(value)
         print '{indent}{attrname}: {value}'.format(**vars())
+
+
+#@task
+#def ec2_tag_instance_according_to_launchconfig(configname, name):
+    #"""
+    #Fix tagging if ``ec2_launch_instance`` is stopped while waiting for the instance to launch.
+    #"""
+
+@task
+def ec2_add_tag(tagname, value):
+    """
+    ``ec2_add_tag:tagname,value``. Add tag to EC2 instance. Fails if tag already exists.
+    """
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    if tagname in instancewrapper.instance.tags:
+        prettyname = instancewrapper.prettyname()
+        abort('{prettyname}: duplicate tag: {tagname}'.format(**vars()))
+    instancewrapper.instance.add_tag(tagname, value)
+
+@task
+def ec2_set_tag(tagname, value):
+    """
+    ``ec2_set_tag:tagname,value``. Set tag on EC2 instance. Overwrites value if tag exists.
+    """
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    instancewrapper.instance.add_tag(tagname, value)
+
+@task
+def ec2_remove_tag(tagname):
+    """
+    ``ec2_remove_tag:tagname``. Remove tag from EC2 instance. Fails if tag does not exist.
+    """
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    if not tagname in instancewrapper.instance.tags:
+        prettyname = instancewrapper.prettyname()
+        abort('{prettyname} has no "{tagname}"-tag'.format(**vars()))
+    instancewrapper.instance.remove_tag(tagname)
+
 
 
 @task
@@ -152,34 +201,41 @@ def ec2_launch_instance(configname, name):
     connection = connect_to_region(region_name=conf['region'], **awsfab_settings.AUTH)
     ami_image_id = conf['ami']
     key_pair_name = conf['key_name']
-    connection.run_instances(conf['ami'],
-                             key_name=conf['key_name'],
-                             instance_type=conf['instance_type'],
-                             security_groups=conf['security_groups'])
+    reservation = connection.run_instances(
+            conf['ami'],
+            key_name=conf['key_name'],
+            instance_type=conf['instance_type'],
+            security_groups=conf['security_groups'])
+    instance = reservation.instances[0]
 
 
 @task
 def ec2_start_instance(nowait=False):
-    instance = Ec2InstanceWrapper.get_from_host_string()
-    instance.instance.start()
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    instancewrapper.instance.start()
     if nowait:
         print ('Starting: {id}. This is an asynchronous operation. Use '
                 '``ec2_list_instances`` or the aws dashboard to check the status of '
-                'the operation.').format(id=instance['id'])
+                'the operation.').format(id=instancewrapper['id'])
     else:
-        wait_for_running_state(instance['id'])
+        wait_for_running_state(instancewrapper['id'])
 
 @task
 def ec2_stop_instance(nowait=False):
-    instance = Ec2InstanceWrapper.get_from_host_string()
-    instance.instance.stop()
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    instancewrapper.instance.stop()
     if nowait:
         print ('Stopping: {id}. This is an asynchronous operation. Use '
                 '``ec2_list_instances`` or the aws dashboard to check the status of '
-                'the operation.').format(id=instance['id'])
+                'the operation.').format(id=instancewrapper['id'])
     else:
-        wait_for_stopped_state(instance['id'])
+        wait_for_stopped_state(instancewrapper['id'])
 
+@task
+def ec2_print_instance(full=False):
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    print 'Instance:', instancewrapper['id']
+    _print_instance(instancewrapper.instance, full=full)
 
 @task
 def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
@@ -198,11 +254,8 @@ def ec2_list_instances(full=False, region=awsfab_settings.DEFAULT_REGION):
         print '   instances:'
         for instance in reservation.instances:
             attrnames = None
-            if not full:
-                attrnames = ['state', 'instance_type', 'ip_address',
-                             'public_dns_name', 'key_name', 'tags', 'placement']
             print '      - id:', instance.id
-            _print_instance(instance, attrnames=attrnames, indentspaces=11)
+            _print_instance(instance, full=full, indentspaces=11)
 
 
 @task
@@ -214,8 +267,8 @@ def ec2_login():
     """
     if len(env.all_hosts) != 1:
         abort('ec2_login only works with exactly one host. Given hosts: {0}'.format(repr(env.all_hosts)))
-    instance = Ec2InstanceWrapper.get_from_host_string()
-    host = instance.get_ssh_uri()
-    key_filename = instance.get_ssh_key_filename()
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    host = instancewrapper.get_ssh_uri()
+    key_filename = instancewrapper.get_ssh_key_filename()
     cmd = 'ssh -i {key_filename} {host}'.format(**vars())
     local(cmd)
