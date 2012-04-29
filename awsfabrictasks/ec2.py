@@ -1,11 +1,88 @@
 """
 General tasks for AWS management.
 """
+from os.path import exists
 from fabric.api import task, abort, local, env
 from pprint import pformat
 from boto.ec2 import connect_to_region
+from pprint import pprint
+import json
 
 from conf import awsfab_settings
+
+
+class Ec2Cache(object):
+    def __init__(self):
+        self._by_id= {}
+        self._by_name = {}
+        self._loaded = False
+
+    def _populate(self, region):
+        conn = connect_to_region(region_name=region, **awsfab_settings.AUTH)
+        for reservation in conn.get_all_instances():
+            for instance in reservation.instances:
+                cacheitem = {}
+                for attrname in dir(instance):
+                    if attrname.startswith('_'):
+                        continue
+                    value = getattr(instance, attrname)
+                    if value == None or isinstance(value, (str, unicode, int)):
+                        cacheitem[attrname] = value
+                cacheitem['tags'] = instance.tags
+                cacheitem['region'] = instance.region.name
+                self._by_id[instance.id] = cacheitem
+                if 'Name' in instance.tags:
+                    name = instance.tags['Name']
+                    if name in self._by_name:
+                        raise ValueError(
+                                'Duplicate ``Name`` tag: {0} (used in both: {1} and {2})'.format(
+                                    name, instance.id, self._by_name[name]['id']))
+                    self._by_name[name] = cacheitem
+
+    def sync(self):
+        for region in awsfab_settings.EC2_REGIONS:
+            self._populate(region)
+        self._loaded = True
+
+    def _load_if_not_loaded(self):
+        if self._loaded:
+            return
+        if awsfab_settings.EC2_CACHE_FILE:
+            self.load_from_file()
+        else:
+            self.sync()
+
+    def get_by_nametag(self, name):
+        self._load_if_not_loaded()
+        return self._by_name[name]
+
+    def get_by_instanceid(self, instanceid):
+        self._load_if_not_loaded()
+        return self._by_name[instanceid]
+
+    def as_dict(self):
+        self._load_if_not_loaded()
+        return dict(by_id=self._by_id, by_name=self._by_name)
+
+    def _save(self):
+        dump = json.dumps(self.as_dict(), indent=2)
+        open(awsfab_settings.EC2_CACHE_FILE, 'wb').write(dump)
+
+    def save_if_enabled(self):
+        if awsfab_settings.EC2_CACHE_FILE:
+            self._save()
+
+    def load_from_file(self):
+        if not exists(awsfab_settings.EC2_CACHE_FILE):
+            abort('awsfab_settings.EC2_CACHE_FILE "{0}" does not exist. Please '
+                  'run the ``ec2_cache`` task to create the cache.'.format(awsfab_settings.EC2_CACHE_FILE))
+        dump = open(awsfab_settings.EC2_CACHE_FILE, 'rb').read()
+        data = json.loads(dump)
+        self._by_id = data['by_id']
+        self._by_name = data['by_name']
+        self._loaded = True
+
+cache = Ec2Cache()
 
 
 def get_ec2instance_uri(conf):
@@ -30,6 +107,7 @@ def get_ec2instanceconf(name):
         abort('"{name}" not in awsfab_settings.EC2_INSTANCES.'.format(name=name))
 
 
+
 def _get_name_from_id(instanceid):
     for name, conf in awsfab_settings.EC2_INSTANCES.iteritems():
         current_id = conf['id']
@@ -49,6 +127,23 @@ def _print_instance(instance, attrnames=None, indentspaces=3):
         if not isinstance(value, (str, unicode, bool, int)):
             value = pformat(value)
         print '{indent}{attrname}: {value}'.format(**vars())
+
+
+@task
+def ec2_cache():
+    """
+    Query AWS for all our EC2 instances and cache the results.
+    """
+    cache.sync()
+    cache.save_if_enabled()
+
+
+@task
+def ec2_print_cache():
+    """
+    Pretty-print the ec2 cache created with ``ec2_cache``.
+    """
+    pprint(cache.as_dict())
 
 
 @task
