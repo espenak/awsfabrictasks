@@ -205,7 +205,7 @@ class WaitForStateError(Exception):
     """
 
 
-def wait_for_state(instanceid, state_name, sleep_intervals=[15, 5], last_sleep_repeat=20):
+def wait_for_state(instanceid, state_name, sleep_intervals=[15, 5], last_sleep_repeat=40):
     """
     Poll the instance with ``instanceid`` until its ``state_name`` matches the
     desired ``state_name``.
@@ -227,7 +227,7 @@ def wait_for_state(instanceid, state_name, sleep_intervals=[15, 5], last_sleep_r
     region, instanceid = parse_instanceid(instanceid)
     sleep_intervals.extend([sleep_intervals[-1] for x in xrange(last_sleep_repeat)])
     max_wait_sec = sum(sleep_intervals)
-    print 'Waiting for {instanceid} to change state to: "{state_name}. Will try for {max_wait_sec}s.".'.format(**vars())
+    print 'Waiting for {instanceid} to change state to: "{state_name}". Will try for {max_wait_sec}s.'.format(**vars())
 
     sleep_intervals_len = len(sleep_intervals)
     for index, sleep_sec in enumerate(sleep_intervals):
