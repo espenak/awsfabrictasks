@@ -129,7 +129,7 @@ class WaitForStateError(Exception):
     """
 
 
-def wait_for_state(instanceid, state_name, sleep_intervals=[20, 5], last_sleep_repeat=20):
+def wait_for_state(instanceid, state_name, sleep_intervals=[15, 5], last_sleep_repeat=20):
 
     from time import sleep
 
