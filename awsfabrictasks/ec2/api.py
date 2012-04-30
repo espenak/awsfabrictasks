@@ -87,7 +87,7 @@ class Ec2InstanceWrapper(object):
         return getattr(self.instance, key)
 
     def __str__(self):
-        return 'Ec2InstanceWrapper:{0}'.format(self.instance)
+        return 'Ec2InstanceWrapper:{0}'.format(self)
 
     def prettyname(self):
         """
