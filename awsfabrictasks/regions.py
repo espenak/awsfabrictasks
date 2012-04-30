@@ -17,7 +17,9 @@ def list_regions():
 @task
 def list_zones(region=awsfab_settings.DEFAULT_REGION):
     """
-    list_zones:<region=DEFAULT_REGION>. List zones in the given region.
+    List zones in the given region.
+
+    :param region: Defaults to ``awsfab_settings.DEFAULT_REGION``.
     """
     connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
     print 'Zones in {region}:'.format(region=region)

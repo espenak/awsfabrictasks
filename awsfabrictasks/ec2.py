@@ -2,7 +2,7 @@
 General tasks for AWS management.
 """
 from os.path import exists, join, expanduser, abspath
-from pprint import pformat
+from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
 from fabric.api import task, abort, local, env
 
@@ -201,24 +201,51 @@ def ec2_remove_tag(tagname):
 
 
 @task
-def ec2_launch_instance(configname, name):
+def ec2_launch_instance(name, configname=None, noconfirm=False):
     """
     Launch new EC2 instance.
 
-    :param configname: Name of the configuration in
-        ``awsfab_settings.EC2_LAUNCH_CONFIGS`` (required)
     :param name: The name to tag the EC2 instance with (required)
+    :param configname: Name of the configuration in
+        ``awsfab_settings.EC2_LAUNCH_CONFIGS``. Prompts for input if not
+        provided as an argument.
+    :param noconfirm: Do not require the user to confirm creating the instance?
+        Defaults to ``False``.
     """
+
+    if not configname:
+        print 'Please select one of the following configurations:'
+        for config in awsfab_settings.EC2_LAUNCH_CONFIGS:
+            print '-', config
+        configname = raw_input('Type name of config: ').strip()
+    if not configname in awsfab_settings.EC2_LAUNCH_CONFIGS:
+        abort('"{configname}" is not in awsfab_settings.EC2_LAUNCH_CONFIGS'.format(**vars()))
+
     conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
-    connection = connect_to_region(region_name=conf['region'], **awsfab_settings.AUTH)
     ami_image_id = conf['ami']
     key_pair_name = conf['key_name']
-    reservation = connection.run_instances(
-            conf['ami'],
-            key_name=conf['key_name'],
-            instance_type=conf['instance_type'],
-            security_groups=conf['security_groups'])
+    kw = dict(
+            key_name = conf['key_name'],
+            instance_type = conf['instance_type'],
+            security_groups = conf['security_groups'])
+    if 'availability_zone' in conf:
+        kw['placement'] = conf['region'] + conf['availability_zone']
+
+    print ('Are you sure you want to launch (create) a new instance named '
+        '"{name}" with the following settings and tags?').format(**vars())
+    pprint(kw)
+    print 'tags:', pformat(conf['tags'])
+    if raw_input('Create instance [y/N]? ').lower() != 'y':
+        abort('Aborted')
+
+    connection = connect_to_region(region_name=conf['region'], **awsfab_settings.AUTH)
+    reservation = connection.run_instances(conf['ami'], **kw)
     instance = reservation.instances[0]
+    instance.add_tag('Name', name)
+    if 'tags' in conf:
+        for tagname, value in conf['tags'].iteritems():
+            instance.add_tag(tagname, value)
+    wait_for_running_state(instance.id)
 
 
 @task
