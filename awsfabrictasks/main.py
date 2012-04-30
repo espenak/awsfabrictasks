@@ -1,7 +1,7 @@
 from os.path import join
 from fabric import tasks
 
-from .ec2 import Ec2InstanceWrapper
+from .ec2.api import Ec2InstanceWrapper
 from .conf import awsfab_settings
 
 
