@@ -73,7 +73,8 @@ def ec2_launch_instance(name, configname=None, noconfirm=False):
     :param noconfirm: Do not require the user to confirm creating the instance?
         Defaults to ``False``.
     """
-
+    if not awsfab_settings.EC2_LAUNCH_CONFIGS:
+        abort('You have no awsfab_settings.EC2_LAUNCH_CONFIGS.')
     if not configname:
         print 'Please select one of the following configurations:'
         for config in awsfab_settings.EC2_LAUNCH_CONFIGS:
