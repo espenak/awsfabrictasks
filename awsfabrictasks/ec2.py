@@ -9,6 +9,29 @@ from fabric.api import task, abort, local, env
 from .conf import awsfab_settings
 
 
+
+def ec2_rsync(local_dir, remote_dir, rsync_args='-av', sync_content=False):
+    """
+    rsync ``local_dir`` into ``remote_dir`` on the current EC2 instance (the
+    one returned by :meth:`Ec2InstanceWrapper.get_from_host_string`).
+
+    :param sync_content: Normally the function automatically makes sure
+        ``local_dir`` is not suffixed with ``/``, which makes rsync copy
+        ``local_dir`` into ``remote_dir``. With ``sync_content=True``,
+        the content of ``local_dir`` is synced into ``remote_dir`` instead.
+    """
+    instance = Ec2InstanceWrapper.get_from_host_string()
+    ssh_uri = instance.get_ssh_uri()
+    key_filename = instance.get_ssh_key_filename()
+    if sync_content:
+        if not local_dir.endswith('/'):
+            local_dir = local_dir + '/'
+    else:
+        if local_dir.endswith('/'):
+            local_dir = local_dir.rstrip('/')
+    rsync_cmd = 'rsync {rsync_args} -e "ssh -i {key_filename}" {local_dir} {ssh_uri}:{remote_dir}'.format(**vars())
+    local(rsync_cmd)
+
 def parse_instanceid(instanceid_with_optional_region):
     if ':' in instanceid_with_optional_region:
         region, instanceid = instanceid_with_optional_region.split(':', 1)
@@ -16,8 +39,6 @@ def parse_instanceid(instanceid_with_optional_region):
         instanceid = instanceid_with_optional_region
         region = awsfab_settings.DEFAULT_REGION
     return region, instanceid
-
-
 
 class Ec2InstanceWrapper(object):
     def __init__(self, instance):

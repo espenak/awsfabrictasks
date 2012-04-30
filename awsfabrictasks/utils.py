@@ -1,10 +1,14 @@
-import cuisine
-from fabric.api import put, env
+from fabric.api import put, env, sudo
 
 
-def upload_config(local_path, remote_path, **file_attribs):
+
+
+def upload_config(local_path, remote_path, owner=None, mode=None):
     put(local_path, remote_path, use_sudo=True)
-    cuisine.file_attribs(remote_path, **file_attribs)
+    if owner:
+        sudo('chown {owner} {remote_path}'.format(**vars()))
+    if mode:
+        sudo('chmod {mode} {remote_path}'.format(**vars()))
 
 
 def format_keypairs_for_ssh_options():
