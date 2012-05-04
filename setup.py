@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(name = 'awsfabrictasks',
       description = 'Fabric tasks for Amazon Web Services with some extra utilities for Ubuntu.',
-      version = '1.0',
+      version = '1.0.1',
       license = 'BSD',
       url = 'https://github.com/espenak/awsfabrictasks',
       author = 'Espen Angell Kristiansen',
