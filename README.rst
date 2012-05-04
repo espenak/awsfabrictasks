@@ -13,13 +13,5 @@ to add your own guides/experiences to the wiki, and to contribute changes using
 pull requests.
 
 
-Install
-=======
-
-::
-
-    $ pip install aswfabrictasks
-
-
 
 .. _`aswfabrictasks`: https://github.com/espenak/aswfabrictasks
