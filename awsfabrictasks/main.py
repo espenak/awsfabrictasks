@@ -2,7 +2,6 @@ from os.path import join
 from fabric import tasks
 
 from .ec2.api import Ec2InstanceWrapper
-from .conf import awsfab_settings
 
 
 def _splitnames(names):
@@ -43,7 +42,7 @@ def awsfab():
                 help=('Comma-separated list of AWS hosts identified by their '
                     '``Name`` tag. You can specify region by prefixing the name '
                     'with ``region:`` (e.g.: eu-west-1:ec2test). Default region '
-                    'is awsfab_settings.DEFAULT_REGION ({0}).'.format(awsfab_settings.DEFAULT_REGION))
+                    'is awsfab_settings.DEFAULT_REGION.')
                 )
             )
     state.env_options.append(
@@ -52,7 +51,18 @@ def awsfab():
                 help=('Comma-separated list of AWS hosts identified by instance ID. '
                     'You can specify region by prefixing the instanceid '
                     'with ``region:`` (e.g.: eu-west-1:x-abcdefg). Default region '
-                    'is awsfab_settings.DEFAULT_REGION ({0}).'.format(awsfab_settings.DEFAULT_REGION))
+                    'is awsfab_settings.DEFAULT_REGION.')
+                )
+            )
+    state.env_options.append(
+            make_option('--awsfab-settings',
+                dest='awsfab_settings_module',
+                default='awsfab_settings',
+                help=('Awsfabrictask settings module. Defaults to '
+                    '``awsfab_settings``. Can NOT be a dotted path (e.g.: '
+                    'my.settings). If this module is found, it will be merged '
+                    'with the default settings. Furthermore, this module suffixed with '
+                    '``_local`` will also be merged into the awsfab settings if it exists.')
                 )
             )
 

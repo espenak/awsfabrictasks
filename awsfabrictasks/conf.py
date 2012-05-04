@@ -1,7 +1,7 @@
 import sys
 from os.path import expanduser, join, exists, dirname
 from pprint import pprint
-from fabric.api import task
+from fabric.api import task, env
 
 import default_settings
 
@@ -16,8 +16,31 @@ class Settings(object):
     """
     def __init__(self):
         self._apply_settings_from_module(default_settings)
-        custom_settings = import_module('awsfab_settings')
+        self._is_loaded = False
+
+    def __getattribute__(self, attr):
+        """
+        Load settings automatically the first time an uppercase attribute
+        (setting) is requested.
+        """
+        if attr.upper() == attr:
+            if not self._is_loaded:
+                self.load(env.awsfab_settings_module)
+        return super(Settings, self).__getattribute__(attr)
+
+    def load(self, settings_module):
+        if self._is_loaded:
+            raise Exception('Can only load settings once.')
+        custom_settings = import_module(settings_module)
         self._apply_settings_from_module(custom_settings)
+
+        try:
+            local_settings = import_module(settings_module + '_local')
+        except ImportError:
+            pass
+        else:
+            self._apply_settings_from_module(local_settings)
+        self._is_loaded = True
 
     def _apply_settings_from_module(self, settings_module):
         for setting in dir(settings_module):
