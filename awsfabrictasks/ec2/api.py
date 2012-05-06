@@ -20,13 +20,14 @@ def ec2_rsync(local_dir, remote_dir, rsync_args='-av', sync_content=False):
     instance = Ec2InstanceWrapper.get_from_host_string()
     ssh_uri = instance.get_ssh_uri()
     key_filename = instance.get_ssh_key_filename()
+    extra_ssh_args = awsfab_settings.EXTRA_SSH_ARGS
     if sync_content:
         if not local_dir.endswith('/'):
             local_dir = local_dir + '/'
     else:
         if local_dir.endswith('/'):
             local_dir = local_dir.rstrip('/')
-    rsync_cmd = 'rsync {rsync_args} -e "ssh -i {key_filename}" {local_dir} {ssh_uri}:{remote_dir}'.format(**vars())
+    rsync_cmd = 'rsync {rsync_args} -e "ssh -i {key_filename} {extra_ssh_args}" {local_dir} {ssh_uri}:{remote_dir}'.format(**vars())
     local(rsync_cmd)
 
 def _parse_instanceident(instanceid_with_optional_region):

@@ -15,3 +15,7 @@ EC2_INSTANCE_DEFAULT_SSHUSER = 'root'
 # Directories to search for "<key_name>.pem". These paths are filtered through
 # os.path.expanduser, so paths like ``~/.ssh/`` works.
 KEYPAIR_PATH = ['.', '~/.ssh/']
+
+
+# Extra SSH arguments. Used with ``ssh`` and ``rsync``.
+EXTRA_SSH_ARGS = '-o StrictHostKeyChecking=no'

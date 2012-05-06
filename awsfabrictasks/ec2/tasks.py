@@ -194,5 +194,6 @@ def ec2_login():
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     host = instancewrapper.get_ssh_uri()
     key_filename = instancewrapper.get_ssh_key_filename()
-    cmd = 'ssh -i {key_filename} {host}'.format(**vars())
+    extra_ssh_args = awsfab_settings.EXTRA_SSH_ARGS
+    cmd = 'ssh -i {key_filename} {extra_ssh_args} {host}'.format(**vars())
     local(cmd)
