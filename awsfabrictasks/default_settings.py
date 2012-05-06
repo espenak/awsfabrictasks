@@ -1,7 +1,13 @@
+
+# The AWS access key. Should look something like this::
+#
+#    AUTH = {'aws_access_key_id': 'XXXXXXXXXXXXXXXXX',
+#            'aws_secret_access_key': 'aaaaaaaaaaaa\BBBBBBBBB\dsaddad'}
+#
 AUTH = {}
-PROFILES = {}
+
+# The default AWS region to use with the commands where REGION is supported.
 DEFAULT_REGION = 'eu-west-1'
-CONFIG_DIR = 'config'
 
 # Default ssh user if the ``awsfab-ssh-user`` tag is not set
 EC2_INSTANCE_DEFAULT_SSHUSER = 'root'
