@@ -117,11 +117,12 @@ class Ec2InstanceWrapper(object):
         Get the SSH indentify filename (.pem-file) for the instance. Searches
         ``awsfab_settings.KEYPAIR_PATH`` for ``"<instance.key_name>.pem"``.
 
-        :raise LookupError: If the 
+        :raise LookupError: If the key is not found.
         """
         path = awsfab_settings.KEYPAIR_PATH
+        key_name = self.instance.key_name + '.pem'
         for dirpath in path:
-            filename = abspath(join(expanduser(dirpath), self.instance.key_name + '.pem'))
+            filename = abspath(join(expanduser(dirpath), key_name))
             if exists(filename):
                 return filename
         raise LookupError('Could not find {key_name} in awsfab_settings.KEYPAIR_PATH: {path!r}'.format(**vars()))
