@@ -23,3 +23,6 @@ include/
 
 docs/Makefile
 docs/make.bat
+
+build-docs/
+dist/
