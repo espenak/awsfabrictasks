@@ -1,9 +1,10 @@
 from setuptools import setup, find_packages
+from awsfabrictasks import version
 
 
 setup(name = 'awsfabrictasks',
       description = 'Fabric tasks for Amazon Web Services with some extra utilities for Ubuntu.',
-      version = '1.0.3',
+      version = version,
       license = 'BSD',
       url = 'https://github.com/espenak/awsfabrictasks',
       author = 'Espen Angell Kristiansen',
