@@ -1,5 +1,5 @@
 """
-Ubuntu tasks/utilities.
+Ubuntu utilities.
 """
 from fabric.api import sudo
 
