@@ -4,6 +4,13 @@ Welcome to the awsfabrictasks documentation!
 Fabric (http://fabfile.org) tasks for Amazon Web Services with some extra utilities for Ubuntu.
 
 
+Install
+=======
+::
+
+    $ pip install awsfabrictasks
+
+
 Getting started
 ===============
 
