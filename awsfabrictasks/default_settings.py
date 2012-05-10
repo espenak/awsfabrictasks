@@ -19,3 +19,6 @@ KEYPAIR_PATH = ['.', '~/.ssh/']
 
 # Extra SSH arguments. Used with ``ssh`` and ``rsync``.
 EXTRA_SSH_ARGS = '-o StrictHostKeyChecking=no'
+
+# Configuration for ec2_launch_instance (see the docs)
+EC2_LAUNCH_CONFIGS = {}
