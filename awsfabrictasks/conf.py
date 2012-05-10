@@ -2,8 +2,11 @@ import sys
 from os.path import expanduser, join, exists, dirname
 from pprint import pprint
 from fabric.api import task, env
+from warnings import warn
 
 import default_settings
+
+
 
 
 def import_module(name, package=None):
@@ -25,7 +28,10 @@ class Settings(object):
         """
         if attr.upper() == attr:
             if not self._is_loaded:
-                self.load(env.awsfab_settings_module)
+                if hasattr(env, 'awsfab_settings_module'):
+                    self.load(env.awsfab_settings_module)
+                else:
+                    warn('Could not find the env.awsfab_settings_module. Make sure you run run awsfab tasks using the ``awsfab`` command (not fab)?')
         return super(Settings, self).__getattribute__(attr)
 
     def load(self, settings_module):
