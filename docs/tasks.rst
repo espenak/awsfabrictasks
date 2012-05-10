@@ -11,5 +11,5 @@ awsfabrictasks.ec2.tasks
 
 awsfabrictasks.ec2.regions
 --------------------------
-.. automodule:: awsfabrictasks.ec2.regions
+.. automodule:: awsfabrictasks.regions
    :members:

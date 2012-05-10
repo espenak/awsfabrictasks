@@ -56,20 +56,20 @@ Using the example
 -----------------
 List basic information about your instances with::
 
-    $ bin/awsfab ec2_list_instances
+    $ awsfab ec2_list_instances
 
 Start one of your existing EC2 instances (the example assumes it is tagged with
-``Name="mytest"``):
+``Name="mytest"``)::
 
-    $ bin/awsfab -E mytest ec2_start_instance
+    $ awsfab -E mytest ec2_start_instance
 
 Login (SSH) to the instance we just started::
 
-    $ bin/awsfab -E mytest ec2_login
+    $ awsfab -E mytest ec2_login
 
 See::
 
-    $ bin/awsfab -l
+    $ awsfab -l
 
 or :ref:`tasks` for more tasks.
 
@@ -89,7 +89,7 @@ all your choices before the instance in created.
 More task-examples
 ==================
 The best examples are the provided tasks. Just browse the source, or use the
-``[source]`` links in the :ref:`tasks docs (tasks)`.
+``[source]`` links in the :ref:`tasks docs <tasks>`.
 
 
 Documentation
