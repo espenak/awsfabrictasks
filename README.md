@@ -2,6 +2,8 @@
 
 Fabric tasks for Amazon Web Services.
 
+## Docs
+http://readthedocs.org/docs/awsfabrictasks/en/latest/
 
 ## Issues/contribute
 Report any issues at the github project page, and feel free to add your own
