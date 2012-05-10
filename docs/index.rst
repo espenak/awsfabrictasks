@@ -22,16 +22,16 @@ with the following syntax::
 The problem with Fabric on AWS EC2 is that we do not have a static dns address
 to give to ``-H``. ``awsfab`` wraps ``fab`` and allows us to use::
 
-    $ bin/awsfab -E <Name-tag of an EC2 instance>,<Name-tag of another....> task1 task2
+    $ awsfab -E <Name-tag of an EC2 instance>,<Name-tag of another....> task1 task2
 
 If your instance is not tagged with a name (the tag must be capitalized:
 ``Name``), you can use ``--ec2ids`` instead.
 
 
-Settings
---------
+Required settings
+-----------------
 
-See :ref:`awsfabsettigs`.
+See :ref:`awsfab_settings`.
 
 
 Making a fabfile.py and use awsfabrictasks
