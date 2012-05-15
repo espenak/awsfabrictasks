@@ -11,6 +11,11 @@ Install
     $ pip install awsfabrictasks
 
 
+Code and issues
+===============
+Get the sourcecode, and submit issues at our github repo: https://github.com/espenak/awsfabrictasks
+
+
 Getting started
 ===============
 
