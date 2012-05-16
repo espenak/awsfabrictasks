@@ -48,4 +48,7 @@ Example awsfab_settings.py
 Default settings
 ================
 
-.. literalinclude:: ../awsfabrictasks/default_settings.py
+..
+    ..literalinclude:: ../awsfabrictasks/default_settings.py
+
+.. automodule:: awsfabrictasks.default_settings
