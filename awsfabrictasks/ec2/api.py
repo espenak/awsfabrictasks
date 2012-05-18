@@ -278,3 +278,37 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
         if not isinstance(value, (str, unicode, bool, int)):
             value = pformat(value)
         print '{indent}{attrname}: {value}'.format(**vars())
+
+
+
+
+hostsfile_template = """
+127.0.0.1 localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1 ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+
+{custom_hosts}
+"""
+
+def _nametags_to_hostslist(nametags=[], suffix='.ec2private'):
+    hostslist = []
+    for nametag in nametags:
+        instancewrapper = Ec2InstanceWrapper.get_by_nametag(nametag)
+        private_ip_address = instancewrapper.instance.private_ip_address
+        hostslist.append('{private_ip_address} {nametag}{suffix}'.format(**vars()))
+    return hostslist
+
+def create_hostsfile_from_nametags(nametags=[], suffix='.ec2private', hostsfile_template=hostsfile_template):
+    """
+    Create a ``/etc/hosts`` file from the list of ``nametags``.
+    The result will be a hostsfile with private_ip_address as IP, and
+    ``nametag+suffix`` as hostname.
+    """
+    hostslist = _nametags_to_hostslist(nametags, suffix)
+    return hostsfile_template.format(custom_hosts='\n'.join(hostslist))
