@@ -27,11 +27,12 @@ def get_hosts_supporting_aws(self, arg_hosts, arg_roles, arg_exclude_hosts, env=
 
     tvps = env.ec2tags
     tvps = tvps and tvps.split(',') or []
-    tvps = dict((tvp.split('=') for tvp in tvps))
-    instances = Ec2InstanceWrapper.get_by_tagvalue(tvps)
-    for instance in instances:
-        instance.add_instance_to_env()
-        hosts.append(instance.get_ssh_uri())
+    if tvps:
+        tvps = dict((tvp.split('=') for tvp in tvps))
+        instances = Ec2InstanceWrapper.get_by_tagvalue(tvps)
+        for instance in instances:
+            instance.add_instance_to_env()
+            hosts.append(instance.get_ssh_uri())
 
     return hosts
 
