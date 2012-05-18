@@ -1,6 +1,13 @@
 History
 =======
 
+Version 1.0.5
+-------------
+- Added the ability to match any tag, not just name
+  (https://github.com/espenak/awsfabrictasks/pull/1).
+  Thanks to Mr. Russ Ferriday
+
+
 Version 1.0.4
 -------------
 
