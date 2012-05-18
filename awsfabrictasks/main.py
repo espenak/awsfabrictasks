@@ -24,6 +24,15 @@ def get_hosts_supporting_aws(self, arg_hosts, arg_roles, arg_exclude_hosts, env=
         instance = Ec2InstanceWrapper.get_by_nametag(name)
         instance.add_instance_to_env()
         hosts.append(instance.get_ssh_uri())
+
+    tvps = env.ec2tags
+    tvps = tvps and tvps.split(',') or []
+    tvps = dict((tvp.split('=') for tvp in tvps))
+    instances = Ec2InstanceWrapper.get_by_tagvalue(tvps)
+    for instance in instances:
+        instance.add_instance_to_env()
+        hosts.append(instance.get_ssh_uri())
+
     return hosts
 
 
@@ -43,6 +52,12 @@ def awsfab():
                     '``Name`` tag. You can specify region by prefixing the name '
                     'with ``region:`` (e.g.: eu-west-1:ec2test). Default region '
                     'is awsfab_settings.DEFAULT_REGION.')
+                )
+            )
+    state.env_options.append(
+            make_option('-T', '--ec2tags',
+                default='',
+                help=('Comma-separated list of tag=value pairs.')
                 )
             )
     state.env_options.append(

@@ -168,6 +168,36 @@ class Ec2InstanceWrapper(object):
         return cls(reservation.instances[0])
 
     @classmethod
+    def get_by_tagvalue(cls, tags={}, region=None):
+        """
+        Connect to AWS and get the EC2 instance with the given tag:value pairs.
+
+        :param tags
+            A string like 'role=testing,fake=yes' to AND a set of ec2 
+            instance tags
+        :param region:
+            optional.
+        :raise Ec2RegionConnectionError: If connecting to the region fails.
+        :raise LookupError: If no matching instance was found in the region.
+        :return: A list of :class:`Ec2InstanceWrapper`s containing the 
+            matching instances.
+        """
+        region = region is None and awsfab_settings.DEFAULT_REGION or region
+        connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
+        if not connection:
+            raise Ec2RegionConnectionError(region)
+        tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.iteritems()))
+        reservations = connection.get_all_instances(filters=tags)
+        if len(reservations) == 0:
+            raise LookupError('No ec2 instances with tags{0}'.format(tags))
+        insts = []
+        for r in reservations:
+            for instance in r.instances:
+                insts.append(cls(instance))
+        return insts
+
+
+    @classmethod
     def get_by_instanceid(cls, instanceid):
         """
         Connect to AWS and get the EC2 instance with the given instance ID.
