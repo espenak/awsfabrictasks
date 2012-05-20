@@ -15,6 +15,11 @@ class RdsRegionConnectionError(Exception):
 
 
 class RdsInstanceWrapper(object):
+    """
+    .. warning::
+        This class is experimental, so we may make backwards-incompatible
+        changes to it in the future.
+    """
     def __init__(self, dbinstance):
         """
         :param dbinstance: A :class:`boto.rds.dbinstance.DBInstance` object.
