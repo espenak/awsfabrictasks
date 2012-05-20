@@ -1,6 +1,7 @@
 from fabric.api import put, sudo
-from os import walk
+from os import walk, remove
 from os.path import relpath, join
+from tempfile import NamedTemporaryFile
 
 
 def sudo_chown(remote_path, owner):
@@ -32,6 +33,24 @@ def sudo_upload_file(local_path, remote_path, **chattr_kw):
     """
     put(local_path, remote_path, use_sudo=True)
     sudo_chattr(remote_path, **chattr_kw)
+
+def sudo_upload_string_to_file(string_to_upload, remote_path, **chattr_kw):
+    """
+    Create a tempfile containing ``string_to_upload``, and use
+    :func:`sudo_upload_file` to upload the tempfile. Removes the tempfile
+    when the upload is complete or if it fails.
+
+    :param string_to_upload: The string to write to the tempfile.
+    :param remote_path: See :func:`sudo_upload_file`.
+    :param chattr_kw: See :func:`sudo_upload_file`.
+    """
+    tmpfile = NamedTemporaryFile(delete=False)
+    try:
+        tmpfile.write(string_to_upload)
+        tmpfile.close()
+        sudo_upload_file(tmpfile.name, remote_path, **chattr_kw)
+    finally:
+        remove(tmpfile.name)
 
 
 def sudo_mkdir_p(remote_path, **chattr_kw):
