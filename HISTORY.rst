@@ -1,6 +1,11 @@
 History
 =======
 
+Version 1.0.6
+-------------
+- Helper function to create a remote file from string.
+- Include Name-tag behind header when listing instances.
+
 Version 1.0.5
 -------------
 - Added the ability to match any tag, not just name
