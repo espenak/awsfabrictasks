@@ -348,7 +348,97 @@ def create_hostsfile_from_nametags(nametags=[], suffix='.ec2private', hostsfile_
 
 
 class Ec2LaunchInstance(object):
-    def __init__(self, extra_tags={}):
+    """
+    Launch instances configured in ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
+
+    Example::
+
+        launcher = Ec2LaunchInstance(extra_tags={'Name': 'mytest'})
+        launcher.confirm()
+        instance = launcher.run_instance()
+
+    Note that this class is optimized for the following use case:
+
+        - Create one or more instances (initialize one or more Ec2LaunchInstance).
+        - Confirm using :meth:`.confirm` or :meth:`.confirm_many`.
+        - Launch each instance using meth:`Ec2LaunchInstance.run_instance` or :meth:`Ec2LaunchInstance.run_many_instances`.
+        - Use :meth:`Ec2LaunchInstance.wait_for_running_state_many` to wait for all instances to launch.
+        - Do something with the running instances.
+
+    Example of launching many instances:
+
+        a = Ec2LaunchInstance(extra_tags={'Name': 'a'})
+        b = Ec2LaunchInstance(extra_tags={'Name': 'b'})
+        Ec2LaunchInstance.confirm_many([a, b])
+        Ec2LaunchInstance.run_many_instances([a, b])
+        # Note: that we can start doing stuff with ``a`` and ``b`` that does not
+        # require the instances to be running, such as setting tags.
+        Ec2LaunchInstance.wait_for_running_state_many([a, b])
+    """
+
+    @classmethod
+    def wait_for_running_state_many(cls, launchers, **kwargs):
+        """
+        Loop through ``launchers`` and run :func:`wait_for_running_state`.
+
+        :param launchers:
+            List of Ec2LaunchInstance objects that have been lauched with
+            :meth:`Ec2LaunchInstance.run_instance`.
+        :param kwargs:
+            Forwarded to :func:`wait_for_running_state`.
+        """
+        for launcher in launchers:
+            wait_for_running_state(launcher.instance.id, **kwargs)
+
+    @classmethod
+    def run_many_instances(cls, launchers):
+        """
+        Loop through ``launchers`` and run :func:`run_instance`.
+
+        :param launchers:
+            List of Ec2LaunchInstance objects.
+        :param kwargs:
+            Forwarded to :func:`wait_for_running_state`.
+        """
+        for launcher in launchers:
+            launcher.run_instance()
+
+    @classmethod
+    def confirm_many(cls, launchers):
+        """
+        Loop through
+        Use :meth:`prettyprint` to show the user their choices, and ask
+        for confirmation. Runs ``fabric.api.abort()`` if the user does
+        not confirm the choices.
+        """
+        from textwrap import fill
+        print fill('Are you sure you want to launch (create) the following new instances '
+                   'with the following settings and tags?', 80)
+        print '-' * 80
+        for launcher in launchers:
+            print
+            print launcher.prettyformat()
+        print '-' * 80
+        Ec2LaunchInstance._confirm('Create instances')
+
+    @staticmethod
+    def _confirm(question):
+        if raw_input(question + ' [y/N]? ').lower() != 'y':
+            abort('Aborted')
+
+    def __init__(self, extra_tags={}, configname=None,
+                 configname_help='Please select one of the following configurations:'):
+        """
+        Initialize the launcher. Runs :meth:`create_config_ask_if_none`.
+
+        :param configname:
+            Name of a configuration in
+            ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
+            If it is ``None``, we ask the user for the configfile.
+        :param configname_help:
+            The help to show above the prompt for configname input (only used
+            if ``configname`` is ``None``.
+        """
         if not awsfab_settings.EC2_LAUNCH_CONFIGS:
             abort('You have no awsfab_settings.EC2_LAUNCH_CONFIGS.')
         self.extra_tags = extra_tags
@@ -359,14 +449,25 @@ class Ec2LaunchInstance(object):
         #: Keyword arguments for ``run_instances()``.
         self.kw = {}
 
-    def ask_for_configname(self,
-                           question='Please select one of the following configurations:'):
+        #: See the docs for the __init__ parameter.
+        self.configname = configname
+
+        #: See the docs for the __init__ parameter.
+        self.configname_help = configname_help
+
+        #: The instance launced by :meth:`.run_instance`. None when
+        #: run_instance() has not been invoked.
+        self.instance = None
+
+        self.create_config_ask_if_none()
+
+    def _ask_for_configname(self):
         """
         Ask the user for a configname.
 
         :return: The user-provided configname.
         """
-        print question
+        print self.configname_help
         print '-' * 80
         fmt = '{0:>30} | {1}'
         print fmt.format('NAME', 'DESCRIPTION')
@@ -377,13 +478,7 @@ class Ec2LaunchInstance(object):
         configname = raw_input('Type name of config: ').strip()
         return configname
 
-    def configure(self, configname):
-        """
-        Set :obj:`.kw` and :obj:`.conf` from the given configname.
-
-        :param configname: Name of a configuration in
-            ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
-        """
+    def _configure(self, configname):
         if not configname in awsfab_settings.EC2_LAUNCH_CONFIGS:
             abort('"{configname}" is not in awsfab_settings.EC2_LAUNCH_CONFIGS'.format(**vars()))
         conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
@@ -395,14 +490,17 @@ class Ec2LaunchInstance(object):
         self.conf = conf
         self.kw = kw
 
-    def create_config_ask_if_none(self, configname=None):
+    def create_config_ask_if_none(self):
         """
-        Run :meth:`.configure`, but use :meth:`.ask_for_configname` if
-        ``configname`` is ``None``.
+        Set :obj:`.kw` and :obj:`.conf` using :obj:`configname`.
+        Prompt the user for a configname if bool(:obj:`.configname`) is
+        ``False``.
         """
-        if not configname:
-            configname = self.ask_for_configname()
-        self.configure(configname)
+        if self.configname:
+            configname = self.configname
+        else:
+            configname = self._ask_for_configname()
+        self._configure(configname)
 
     def get_all_tags(self):
         """
@@ -416,13 +514,18 @@ class Ec2LaunchInstance(object):
 
     def prettyformat(self):
         """
-        Prettyformat the configuration. Should not be used before
-        :meth:`.configure` has populated :obj:`.kw` and :obj:`.conf`.
+        Prettyformat the configuration.
         """
         from os import linesep
-        return '{kw}{linesep}Tags: {tags}'.format(kw=pformat(self.kw),
+        tags = self.get_all_tags()
+        info = '{kw}{linesep}Tags: {tags}'.format(kw=pformat(self.kw),
                                                   linesep=linesep,
-                                                  tags=pformat(self.get_all_tags()))
+                                                  tags=pformat(tags))
+        if 'Name' in tags:
+            name = tags['Name']
+            info = 'Name={name}:{linesep}{info}'.format(**vars())
+            info = '\n   '.join(info.splitlines())
+        return info
 
     def confirm(self):
         """
@@ -430,21 +533,26 @@ class Ec2LaunchInstance(object):
         for confirmation. Runs ``fabric.api.abort()`` if the user does
         not confirm the choices.
         """
-        print ('Are you sure you want to launch (create) a new instance '
-               'with the following settings and tags?')
+        from textwrap import fill
+        print fill('Are you sure you want to launch (create) a new instance '
+                   'with the following settings and tags?', 80)
+        print '-' * 80
         print self.prettyformat()
-        if raw_input('Create instance [y/N]? ').lower() != 'y':
-            abort('Aborted')
+        print '-' * 80
+        Ec2LaunchInstance._confirm('Create instance')
 
     def run_instance(self):
         """
         Run/launch the configured instance, and add the tags to the instance
         (:meth:`.get_all_tags`).
+
+        :return: The launched instance.
         """
         connection = connect_to_region(region_name=self.conf['region'], **awsfab_settings.AUTH)
         reservation = connection.run_instances(self.conf['ami'], **self.kw)
         instance = reservation.instances[0]
         self._add_tags(instance)
+        self.instance = instance
         return instance
 
     def _add_tags(self, instance):

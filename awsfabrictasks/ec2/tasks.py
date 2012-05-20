@@ -72,8 +72,7 @@ def ec2_launch_instance(name, configname=None):
         ``awsfab_settings.EC2_LAUNCH_CONFIGS``. Prompts for input if not
         provided as an argument.
     """
-    launcher = Ec2LaunchInstance(extra_tags={'Name': name})
-    launcher.create_config_ask_if_none(configname)
+    launcher = Ec2LaunchInstance(extra_tags={'Name': name}, configname=configname)
     launcher.confirm()
     instance = launcher.run_instance()
     wait_for_running_state(instance.id)
