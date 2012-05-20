@@ -1,6 +1,11 @@
 History
 =======
 
+Version 1.0.7
+-------------
+- Experimental support for RDS
+- Experimental support for groups of AWS instances in the awsenv module.
+
 Version 1.0.6
 -------------
 - Helper function to create a remote file from string.
