@@ -322,7 +322,7 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
             continue
         value = instance.__dict__[attrname]
         if not isinstance(value, (str, unicode, bool, int)):
-            value = pformat(value)
+            value = pformat(value, indent=indentspaces+3)
         print '{indent}{attrname}: {value}'.format(**vars())
 
 
