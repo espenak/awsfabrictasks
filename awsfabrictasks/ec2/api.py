@@ -198,6 +198,18 @@ class Ec2InstanceWrapper(object):
 
 
     @classmethod
+    def get_exactly_one_by_tagvalue(cls, tags, region=None):
+        """
+        Use :meth:`.get_by_tagvalue` to find instances by ``tags``, but
+        raise ``LookupError`` if not exactly one instance is found.
+        """
+        instances = cls.get_by_tagvalue(tags, region)
+        if not len(instances) == 1:
+            raise LookupError('Got more than one instance matching {0!r} in region={1!r}'.format(tags, region))
+        return instances[0]
+
+
+    @classmethod
     def get_by_instanceid(cls, instanceid):
         """
         Connect to AWS and get the EC2 instance with the given instance ID.
