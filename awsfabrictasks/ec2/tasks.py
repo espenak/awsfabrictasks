@@ -144,6 +144,10 @@ def ec2_stop_instance(nowait=False):
     else:
         wait_for_stopped_state(instancewrapper['id'])
 
+def _get_instanceident(instance):
+    return 'id: {id}   (Name: {name})'.format(id=instance.id,
+                                          name=instance.tags.get('Name', ''))
+
 @task
 def ec2_print_instance(full=False):
     """
@@ -153,7 +157,7 @@ def ec2_print_instance(full=False):
         to ``False``.
     """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
-    print 'Instance:', instancewrapper['id']
+    print 'Instance:', _get_instanceident(instancewrapper.instance)
     print_ec2_instance(instancewrapper.instance, full=full)
 
 @task
@@ -178,7 +182,7 @@ def ec2_list_instances(region=awsfab_settings.DEFAULT_REGION, full=False):
         print '   instances:'
         for instance in reservation.instances:
             attrnames = None
-            print '      - id:', instance.id
+            print '      -', _get_instanceident(instance)
             print_ec2_instance(instance, full=full, indentspaces=11)
 
 
