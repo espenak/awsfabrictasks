@@ -1,7 +1,7 @@
 from os.path import exists, join, expanduser, abspath
 from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
-from fabric.api import local, env
+from fabric.api import local, env, abort
 
 from ..conf import awsfab_settings
 
@@ -343,3 +343,111 @@ def create_hostsfile_from_nametags(nametags=[], suffix='.ec2private', hostsfile_
     """
     hostslist = _nametags_to_hostslist(nametags, suffix)
     return hostsfile_template.format(custom_hosts='\n'.join(hostslist))
+
+
+
+
+class Ec2LaunchInstance(object):
+    def __init__(self, extra_tags={}):
+        if not awsfab_settings.EC2_LAUNCH_CONFIGS:
+            abort('You have no awsfab_settings.EC2_LAUNCH_CONFIGS.')
+        self.extra_tags = extra_tags
+
+        #: A config dict from awsfab_settings.EC2_LAUNCH_CONFIGS.
+        self.conf = {}
+
+        #: Keyword arguments for ``run_instances()``.
+        self.kw = {}
+
+    def ask_for_configname(self,
+                           question='Please select one of the following configurations:'):
+        """
+        Ask the user for a configname.
+
+        :return: The user-provided configname.
+        """
+        print question
+        print '-' * 80
+        fmt = '{0:>30} | {1}'
+        print fmt.format('NAME', 'DESCRIPTION')
+        for configname, config in awsfab_settings.EC2_LAUNCH_CONFIGS.iteritems():
+            description = config.get('description', '')
+            print fmt.format(configname, description)
+        print '-' * 80
+        configname = raw_input('Type name of config: ').strip()
+        return configname
+
+    def configure(self, configname):
+        """
+        Set :obj:`.kw` and :obj:`.conf` from the given configname.
+
+        :param configname: Name of a configuration in
+            ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
+        """
+        if not configname in awsfab_settings.EC2_LAUNCH_CONFIGS:
+            abort('"{configname}" is not in awsfab_settings.EC2_LAUNCH_CONFIGS'.format(**vars()))
+        conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
+        kw = dict(key_name = conf['key_name'],
+                  instance_type = conf['instance_type'],
+                  security_groups = conf['security_groups'])
+        if 'availability_zone' in conf:
+            kw['placement'] = conf['region'] + conf['availability_zone']
+        self.conf = conf
+        self.kw = kw
+
+    def create_config_ask_if_none(self, configname=None):
+        """
+        Run :meth:`.configure`, but use :meth:`.ask_for_configname` if
+        ``configname`` is ``None``.
+        """
+        if not configname:
+            configname = self.ask_for_configname()
+        self.configure(configname)
+
+    def get_all_tags(self):
+        """
+        Merge tags from the awsfab_settings.EC2_LAUNCH_CONFIGS config, and the
+        ``extra_tags`` parameter for __init__, and return the resulting dict.
+        """
+        tags = {}
+        tags.update(self.conf['tags'])
+        tags.update(self.extra_tags)
+        return tags
+
+    def prettyformat(self):
+        """
+        Prettyformat the configuration. Should not be used before
+        :meth:`.configure` has populated :obj:`.kw` and :obj:`.conf`.
+        """
+        from os import linesep
+        return '{kw}{linesep}Tags: {tags}'.format(kw=pformat(self.kw),
+                                                  linesep=linesep,
+                                                  tags=pformat(self.get_all_tags()))
+
+    def confirm(self):
+        """
+        Use :meth:`prettyprint` to show the user their choices, and ask
+        for confirmation. Runs ``fabric.api.abort()`` if the user does
+        not confirm the choices.
+        """
+        print ('Are you sure you want to launch (create) a new instance '
+               'with the following settings and tags?')
+        print self.prettyformat()
+        if raw_input('Create instance [y/N]? ').lower() != 'y':
+            abort('Aborted')
+
+    def run_instance(self):
+        """
+        Run/launch the configured instance, and add the tags to the instance
+        (:meth:`.get_all_tags`).
+        """
+        connection = connect_to_region(region_name=self.conf['region'], **awsfab_settings.AUTH)
+        reservation = connection.run_instances(self.conf['ami'], **self.kw)
+        instance = reservation.instances[0]
+        self._add_tags(instance)
+        return instance
+
+    def _add_tags(self, instance):
+        if 'tags' in self.get_all_tags():
+            for tagname, value in self.conf['tags'].iteritems():
+                instance.add_tag(tagname, value)

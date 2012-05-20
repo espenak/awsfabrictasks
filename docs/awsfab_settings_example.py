@@ -24,6 +24,8 @@ ami = {
 ###########################################################
 EC2_LAUNCH_CONFIGS = {
     'ubuntu-10.04-lts-micro': {
+        'description': 'Ubuntu 10.04 on the least expensive instance type.',
+
         # Ami ID (E.g.: ami-fb665f8f)
         'ami': ami['ubuntu-10.04-lts'],
 
