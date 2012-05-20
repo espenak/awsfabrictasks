@@ -299,9 +299,9 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
     if full:
         attrnames = sorted(instance.__dict__.keys())
     else:
-        attrnames = ['state', 'instance_type', 'ip_address',
+        attrnames = ['state', 'instance_type', 'ip_address', 'public_dns_name',
                      'private_dns_name', 'private_ip_address',
-                     'public_dns_name', 'key_name', 'tags', 'placement']
+                     'key_name', 'tags', 'placement']
     for attrname in attrnames:
         if attrname.startswith('_'):
             continue
