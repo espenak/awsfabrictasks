@@ -93,6 +93,18 @@ class Ec2InstanceWrapper(object):
     def __repr__(self):
         return 'Ec2InstanceWrapper({0})'.format(self.prettyname())
 
+    def is_running(self):
+        """
+        Return ``True`` if state=='running'.
+        """
+        return self.instance.state == 'running'
+
+    def is_stopped(self):
+        """
+        Return ``True`` if state=='stopped'.
+        """
+        return self.instance.state == 'stopped'
+
     def prettyname(self):
         """
         Return a pretty-formatted name for this instance, using the Name-tag if
