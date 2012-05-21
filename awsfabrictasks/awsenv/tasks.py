@@ -17,6 +17,12 @@ __all__ = [
 
 @task
 def awsenv_print(environment):
+    """
+    Print information about all EC2 and RDS instances in the given AWS-environment.
+
+    :param environment:
+        The name of the environment.
+    """
     awsenvironment = AwsEnvironment(environment)
     instancewrappers = awsenvironment.get_ec2_instancewrappers()
     print '-' * 80
