@@ -69,6 +69,29 @@ class Ec2RegionConnectionError(Exception):
         msg = 'Could not connect to region: {region}'.format(**vars())
         super(Ec2RegionConnectionError, self).__init__(msg)
 
+
+class InstanceLookupError(LookupError):
+    """
+    Base class for instance lookup errors.
+    """
+
+class MultipleInstancesWithSameNameError(InstanceLookupError):
+    """
+    Raised when multiple instances with the same nametag is discovered.
+    (see: :meth:`Ec2InstanceWrapper.get_by_nametag`)
+    """
+
+class NoInstanceWithNameFound(InstanceLookupError):
+    """
+    Raised when no instace with the requested name is found in
+    :meth:`Ec2InstanceWrapper.get_by_nametag`.
+    """
+
+class NotExactlyOneInstanceError(InstanceLookupError):
+    """
+    Raised when more than one instance is found when expecting exactly one instance.
+    """
+
 class Ec2InstanceWrapper(object):
     """
     Wraps a :class:`boto.ec2.instance.Instance` with convenience functions.
@@ -165,7 +188,9 @@ class Ec2InstanceWrapper(object):
         :param instancename_with_optional_region:
             Parsed with :func:`parse_instancename` to find the region and name.
         :raise Ec2RegionConnectionError: If connecting to the region fails.
-        :raise LookupError: If the requested instance was not found in the region.
+        :raise InstanceLookupError:
+            Or one of its subclasses if the requested instance was not found in
+            the region.
         :return: A :class:`Ec2InstanceWrapper` contaning the requested instance.
         """
         region, name = parse_instancename(instancename_with_optional_region)
@@ -174,12 +199,12 @@ class Ec2InstanceWrapper(object):
             raise Ec2RegionConnectionError(region)
         reservations = connection.get_all_instances(filters={'tag:Name': name})
         if len(reservations) == 0:
-            raise LookupError('No ec2 instances with tag:Name={0}'.format(name))
+            raise NoInstanceWithNameFound('No ec2 instances with tag:Name={0}'.format(name))
         if len(reservations) > 1:
-            raise LookupError('More than one ec2 reservations with tag:Name={0}'.format(name))
+            raise MultipleInstancesWithSameNameError('More than one ec2 reservations with tag:Name={0}'.format(name))
         reservation = reservations[0]
         if len(reservation.instances) != 1:
-            raise LookupError('Did not get exactly one instance with tag:Name={0}'.format(name))
+            raise NotExactlyOneInstanceError('Did not get exactly one instance with tag:Name={0}'.format(name))
         return cls(reservation.instances[0])
 
     @classmethod
@@ -419,7 +444,8 @@ class Ec2LaunchInstance(object):
             abort('Aborted')
 
     def __init__(self, extra_tags={}, configname=None,
-                 configname_help='Please select one of the following configurations:'):
+                 configname_help='Please select one of the following configurations:',
+                 duplicate_name_protection=True):
         """
         Initialize the launcher. Runs :meth:`create_config_ask_if_none`.
 
@@ -452,6 +478,8 @@ class Ec2LaunchInstance(object):
         self.instance = None
 
         self.create_config_ask_if_none()
+        if duplicate_name_protection:
+            self.check_if_name_exists()
 
     def _ask_for_configname(self):
         """
@@ -481,6 +509,22 @@ class Ec2LaunchInstance(object):
             kw['placement'] = conf['region'] + conf['availability_zone']
         self.conf = conf
         self.kw = kw
+
+    def check_if_name_exists(self):
+        import sys
+        name = self.get_all_tags().get('Name')
+        if name:
+            print
+            sys.stdout.write('Making sure no EC2 instance with Name={0} exists...'.format(name))
+            sys.stdout.flush()
+            try:
+                wrapper = Ec2InstanceWrapper.get_by_nametag(name)
+            except NoInstanceWithNameFound:
+                pass
+            else:
+                abort('An instance named {name} already exists.'.format(name=name))
+            print 'OK'
+            print
 
     def create_config_ask_if_none(self):
         """
