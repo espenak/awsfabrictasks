@@ -1,6 +1,10 @@
 History
 =======
 
+Version 1.0.11
+--------------
+- Improves RDS support.
+
 Version 1.0.10
 --------------
 - Adds retry support when adding tags in Ec2LaunchInstance.
