@@ -1,6 +1,10 @@
 History
 =======
 
+Version 1.0.9
+-------------
+- Adds name protection to Ec2LaunchInstance (prevent duplicate names).
+
 Version 1.0.8
 -------------
 - Bugfix release for 1.0.7.
