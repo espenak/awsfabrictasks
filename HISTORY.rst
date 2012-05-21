@@ -1,6 +1,10 @@
 History
 =======
 
+Version 1.0.8
+-------------
+- Bugfix release for 1.0.7.
+
 Version 1.0.7
 -------------
 - Experimental support for RDS
