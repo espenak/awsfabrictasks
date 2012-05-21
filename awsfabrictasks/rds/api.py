@@ -36,11 +36,28 @@ class RdsInstanceWrapper(object):
         return self.dbinstance.id
 
     @classmethod
-    def get_all_dbinstancewrappers(cls, region=None):
+    def get_connection(cls, region=None):
+        """
+        Connect to the given region, and return the connection.
+
+        :param region:
+            Defaults to ``awsfab_settings.DEFAULT_REGION`` if ``None``.
+        """
         region = region is None and awsfab_settings.DEFAULT_REGION or region
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
             raise RdsRegionConnectionError(region)
+        return connection
+
+    @classmethod
+    def get_all_dbinstancewrappers(cls, region=None):
+        """
+        Get :class:`RdsInstanceWrapper` wrappers for all RDS dbinstances in the
+        given region.
+
+        Uses :meth:`.get_connection` to connect to the region.
+        """
+        connection = cls.get_connection(region)
         dbinstances = connection.get_all_dbinstances()
         dbinstancewrappers = [cls(dbinstance) for dbinstance in dbinstances]
         return dbinstancewrappers
