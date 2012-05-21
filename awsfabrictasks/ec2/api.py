@@ -500,8 +500,10 @@ class Ec2LaunchInstance(object):
         ``extra_tags`` parameter for __init__, and return the resulting dict.
         """
         tags = {}
-        tags.update(self.conf['tags'])
-        tags.update(self.extra_tags)
+        if 'tags' in self.conf:
+            tags.update(self.conf['tags'])
+        if self.extra_tags:
+            tags.update(self.extra_tags)
         return tags
 
     def prettyformat(self):
@@ -548,6 +550,5 @@ class Ec2LaunchInstance(object):
         return instance
 
     def _add_tags(self, instance):
-        if 'tags' in self.get_all_tags():
-            for tagname, value in self.conf['tags'].iteritems():
-                instance.add_tag(tagname, value)
+        for tagname, value in self.get_all_tags().iteritems():
+            instance.add_tag(tagname, value)
