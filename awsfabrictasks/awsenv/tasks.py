@@ -24,14 +24,18 @@ def awsenv_print(environment):
         The name of the environment.
     """
     awsenvironment = AwsEnvironment(environment)
-    instancewrappers = awsenvironment.get_ec2_instancewrappers()
     print '-' * 80
     print 'EC2 instances:'
     print '-' * 80
-    for instancewrapper in instancewrappers:
-        print
-        print '{0}:'.format(instancewrapper.prettyname())
-        print_ec2_instance(instancewrapper.instance)
+    try:
+        instancewrappers = awsenvironment.get_ec2_instancewrappers()
+    except LookupError, e:
+        print str(e)
+    else:
+        for instancewrapper in instancewrappers:
+            print
+            print '{0}:'.format(instancewrapper.prettyname())
+            print_ec2_instance(instancewrapper.instance)
 
     print
     print '-' * 80
