@@ -393,6 +393,12 @@ class Ec2LaunchInstance(object):
         Ec2LaunchInstance.wait_for_running_state_many([a, b])
     """
 
+    #: Number of seconds to sleep before retrying when adding tags gets EC2ResponseError.
+    tag_retry_sleep = 2
+
+    #: Number of times to retry when adding tags gets EC2ResponseError.
+    tag_retry_count = 4
+
     @classmethod
     def wait_for_running_state_many(cls, launchers, **kwargs):
         """
@@ -593,6 +599,19 @@ class Ec2LaunchInstance(object):
         self.instance = instance
         return instance
 
+    def _add_tag(self, instance, tagname, value, retries=0):
+        import time
+        from boto.exception import EC2ResponseError
+        try:
+            instance.add_tag(tagname, value)
+        except EC2ResponseError:
+            if retries > self.tag_retry_count:
+                raise
+            print ('Got EC2ResponseError while adding tag to {id}. Retrying in '
+                   '{sec} seconds...').format(id=instance.id, sec=self.tag_retry_sleep)
+            time.sleep(self.tag_retry_sleep)
+            self._add_tag(instance, tagname, value, retries=retries+1)
+
     def _add_tags(self, instance):
         for tagname, value in self.get_all_tags().iteritems():
-            instance.add_tag(tagname, value)
+            self._add_tag(instance, tagname, value)
