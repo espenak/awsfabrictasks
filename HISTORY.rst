@@ -1,6 +1,10 @@
 History
 =======
 
+Version 1.0.10
+--------------
+- Adds retry support when adding tags in Ec2LaunchInstance.
+
 Version 1.0.9
 -------------
 - Adds name protection to Ec2LaunchInstance (prevent duplicate names).
