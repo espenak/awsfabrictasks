@@ -26,3 +26,8 @@ awsfabrictasks.decorators
 -----------------------------
 .. automodule:: awsfabrictasks.decorators
    :members:
+
+awsfabrictasks.s3.api
+------------------------
+.. automodule:: awsfabrictasks.s3.api
+   :members:
