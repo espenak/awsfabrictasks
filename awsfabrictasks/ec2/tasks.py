@@ -4,6 +4,7 @@ General tasks for AWS management.
 from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
 from fabric.api import task, abort, local, env
+from fabric.contrib.console import confirm
 
 from ..conf import awsfab_settings
 from api import Ec2InstanceWrapper
@@ -11,16 +12,45 @@ from api import wait_for_stopped_state
 from api import wait_for_running_state
 from api import print_ec2_instance
 from api import Ec2LaunchInstance
+from api import ec2_rsync
+from api import force_slashend
+from ..utils import parse_bool
 
 
 
 __all__ = [
         'ec2_add_tag', 'ec2_set_tag', 'ec2_remove_tag',
         'ec2_launch_instance', 'ec2_start_instance', 'ec2_stop_instance',
-        'ec2_list_instances', 'ec2_print_instance', 'ec2_login'
+        'ec2_list_instances', 'ec2_print_instance', 'ec2_login',
+        'ec2_rsync_download_dir', 'ec2_rsync_upload_dir'
         ]
 
 
+
+@task
+def ec2_rsync_download_dir(remote_dir, local_dir, rsync_args='-av --delete', noconfirm=False):
+    """
+    :param noconfirm:
+        If this is ``True``, we will not ask for confirmation before
+        proceeding with the operation. Defaults to ``False``.
+    """
+    from textwrap import fill
+    remote_dir = force_slashend(remote_dir)
+    if not parse_bool(noconfirm):
+        instance = Ec2InstanceWrapper.get_from_host_string()
+        ssh_uri = instance.get_ssh_uri()
+        ssh_path = '{ssh_uri}:{remote_dir}'.format(**vars())
+        print fill(('Are you sure you want to sync the contents of {remote_dir}'
+                    'into {local_dir}? This will sync the content of '
+                    '{ssh_path} into {local_dir}. E.g.:').format(**vars()), 80)
+        print '{remote_dir}'
+        if not confirm('Proceed?'):
+            abort('Aborted')
+            return
+
+@task
+def ec2_rsync_upload_dir(local_dir, remote_dir, rsync_extra_args=''):
+    pass
 
 @task
 def ec2_add_tag(tagname, value=''):

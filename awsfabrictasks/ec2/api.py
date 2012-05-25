@@ -6,6 +6,11 @@ from fabric.api import local, env, abort
 from ..conf import awsfab_settings
 
 
+def force_slashend(path):
+    if not path.endswith('/'):
+        path = path + '/'
+    return path
+
 
 def ec2_rsync(local_dir, remote_dir, rsync_args='-av', sync_content=False):
     """

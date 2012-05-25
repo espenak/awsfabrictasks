@@ -79,3 +79,11 @@ def sudo_upload_dir(local_dir, remote_dir, **chattr_kw):
             remote_filepath = join(remote_dirpath, filename)
             #print local_filepath, '-->', remote_filepath
             sudo_upload_file(local_filepath, remote_filepath, **chattr_kw)
+
+
+def parse_bool(data):
+    """
+    Return ``True`` if data is one of:: ``'true', 'True', True``, and ``False``
+    if not.
+    """
+    return data in ('true', 'True', True)
