@@ -1,6 +1,10 @@
 History
 =======
 
+Version 1.0.12
+--------------
+- Basic S3 tasks.
+
 Version 1.0.11
 --------------
 - Improves RDS support.
