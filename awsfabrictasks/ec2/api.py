@@ -1,7 +1,7 @@
 from os.path import exists, join, expanduser, abspath
 from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
-from fabric.api import local, env
+from fabric.api import local, env, abort
 
 from ..conf import awsfab_settings
 
@@ -69,6 +69,29 @@ class Ec2RegionConnectionError(Exception):
         msg = 'Could not connect to region: {region}'.format(**vars())
         super(Ec2RegionConnectionError, self).__init__(msg)
 
+
+class InstanceLookupError(LookupError):
+    """
+    Base class for instance lookup errors.
+    """
+
+class MultipleInstancesWithSameNameError(InstanceLookupError):
+    """
+    Raised when multiple instances with the same nametag is discovered.
+    (see: :meth:`Ec2InstanceWrapper.get_by_nametag`)
+    """
+
+class NoInstanceWithNameFound(InstanceLookupError):
+    """
+    Raised when no instace with the requested name is found in
+    :meth:`Ec2InstanceWrapper.get_by_nametag`.
+    """
+
+class NotExactlyOneInstanceError(InstanceLookupError):
+    """
+    Raised when more than one instance is found when expecting exactly one instance.
+    """
+
 class Ec2InstanceWrapper(object):
     """
     Wraps a :class:`boto.ec2.instance.Instance` with convenience functions.
@@ -88,7 +111,22 @@ class Ec2InstanceWrapper(object):
         return getattr(self.instance, key)
 
     def __str__(self):
-        return 'Ec2InstanceWrapper:{0}'.format(self)
+        return 'Ec2InstanceWrapper:{0}'.format(self.prettyname())
+
+    def __repr__(self):
+        return 'Ec2InstanceWrapper({0})'.format(self.prettyname())
+
+    def is_running(self):
+        """
+        Return ``True`` if state=='running'.
+        """
+        return self.instance.state == 'running'
+
+    def is_stopped(self):
+        """
+        Return ``True`` if state=='stopped'.
+        """
+        return self.instance.state == 'stopped'
 
     def prettyname(self):
         """
@@ -150,7 +188,9 @@ class Ec2InstanceWrapper(object):
         :param instancename_with_optional_region:
             Parsed with :func:`parse_instancename` to find the region and name.
         :raise Ec2RegionConnectionError: If connecting to the region fails.
-        :raise LookupError: If the requested instance was not found in the region.
+        :raise InstanceLookupError:
+            Or one of its subclasses if the requested instance was not found in
+            the region.
         :return: A :class:`Ec2InstanceWrapper` contaning the requested instance.
         """
         region, name = parse_instancename(instancename_with_optional_region)
@@ -159,12 +199,12 @@ class Ec2InstanceWrapper(object):
             raise Ec2RegionConnectionError(region)
         reservations = connection.get_all_instances(filters={'tag:Name': name})
         if len(reservations) == 0:
-            raise LookupError('No ec2 instances with tag:Name={0}'.format(name))
+            raise NoInstanceWithNameFound('No ec2 instances with tag:Name={0}'.format(name))
         if len(reservations) > 1:
-            raise LookupError('More than one ec2 reservations with tag:Name={0}'.format(name))
+            raise MultipleInstancesWithSameNameError('More than one ec2 reservations with tag:Name={0}'.format(name))
         reservation = reservations[0]
         if len(reservation.instances) != 1:
-            raise LookupError('Did not get exactly one instance with tag:Name={0}'.format(name))
+            raise NotExactlyOneInstanceError('Did not get exactly one instance with tag:Name={0}'.format(name))
         return cls(reservation.instances[0])
 
     @classmethod
@@ -195,6 +235,18 @@ class Ec2InstanceWrapper(object):
             for instance in r.instances:
                 insts.append(cls(instance))
         return insts
+
+
+    @classmethod
+    def get_exactly_one_by_tagvalue(cls, tags, region=None):
+        """
+        Use :meth:`.get_by_tagvalue` to find instances by ``tags``, but
+        raise ``LookupError`` if not exactly one instance is found.
+        """
+        instances = cls.get_by_tagvalue(tags, region)
+        if not len(instances) == 1:
+            raise LookupError('Got more than one instance matching {0!r} in region={1!r}'.format(tags, region))
+        return instances[0]
 
 
     @classmethod
@@ -307,39 +359,259 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
             continue
         value = instance.__dict__[attrname]
         if not isinstance(value, (str, unicode, bool, int)):
-            value = pformat(value)
+            value = pformat(value, indent=indentspaces+3)
         print '{indent}{attrname}: {value}'.format(**vars())
 
 
 
-
-hostsfile_template = """
-127.0.0.1 localhost
-
-# The following lines are desirable for IPv6 capable hosts
-::1 ip6-localhost ip6-loopback
-fe00::0 ip6-localnet
-ff00::0 ip6-mcastprefix
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
-ff02::3 ip6-allhosts
-
-{custom_hosts}
-"""
-
-def _nametags_to_hostslist(nametags=[], suffix='.ec2private'):
-    hostslist = []
-    for nametag in nametags:
-        instancewrapper = Ec2InstanceWrapper.get_by_nametag(nametag)
-        private_ip_address = instancewrapper.instance.private_ip_address
-        hostslist.append('{private_ip_address} {nametag}{suffix}'.format(**vars()))
-    return hostslist
-
-def create_hostsfile_from_nametags(nametags=[], suffix='.ec2private', hostsfile_template=hostsfile_template):
+class Ec2LaunchInstance(object):
     """
-    Create a ``/etc/hosts`` file from the list of ``nametags``.
-    The result will be a hostsfile with private_ip_address as IP, and
-    ``nametag+suffix`` as hostname.
+    Launch instances configured in ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
+
+    Example::
+
+        launcher = Ec2LaunchInstance(extra_tags={'Name': 'mytest'})
+        launcher.confirm()
+        instance = launcher.run_instance()
+
+    Note that this class is optimized for the following use case:
+
+        - Create one or more instances (initialize one or more Ec2LaunchInstance).
+        - Confirm using :meth:`.confirm` or :meth:`.confirm_many`.
+        - Launch each instance using meth:`Ec2LaunchInstance.run_instance` or :meth:`Ec2LaunchInstance.run_many_instances`.
+        - Use :meth:`Ec2LaunchInstance.wait_for_running_state_many` to wait for all instances to launch.
+        - Do something with the running instances.
+
+    Example of launching many instances:
+
+        a = Ec2LaunchInstance(extra_tags={'Name': 'a'})
+        b = Ec2LaunchInstance(extra_tags={'Name': 'b'})
+        Ec2LaunchInstance.confirm_many([a, b])
+        Ec2LaunchInstance.run_many_instances([a, b])
+        # Note: that we can start doing stuff with ``a`` and ``b`` that does not
+        # require the instances to be running, such as setting tags.
+        Ec2LaunchInstance.wait_for_running_state_many([a, b])
     """
-    hostslist = _nametags_to_hostslist(nametags, suffix)
-    return hostsfile_template.format(custom_hosts='\n'.join(hostslist))
+
+    #: Number of seconds to sleep before retrying when adding tags gets EC2ResponseError.
+    tag_retry_sleep = 2
+
+    #: Number of times to retry when adding tags gets EC2ResponseError.
+    tag_retry_count = 4
+
+    @classmethod
+    def wait_for_running_state_many(cls, launchers, **kwargs):
+        """
+        Loop through ``launchers`` and run :func:`wait_for_running_state`.
+
+        :param launchers:
+            List of Ec2LaunchInstance objects that have been lauched with
+            :meth:`Ec2LaunchInstance.run_instance`.
+        :param kwargs:
+            Forwarded to :func:`wait_for_running_state`.
+        """
+        for launcher in launchers:
+            wait_for_running_state(launcher.instance.id, **kwargs)
+
+    @classmethod
+    def run_many_instances(cls, launchers):
+        """
+        Loop through ``launchers`` and run :func:`run_instance`.
+
+        :param launchers:
+            List of Ec2LaunchInstance objects.
+        :param kwargs:
+            Forwarded to :func:`wait_for_running_state`.
+        """
+        for launcher in launchers:
+            launcher.run_instance()
+
+    @classmethod
+    def confirm_many(cls, launchers):
+        """
+        Loop through
+        Use :meth:`prettyprint` to show the user their choices, and ask
+        for confirmation. Runs ``fabric.api.abort()`` if the user does
+        not confirm the choices.
+        """
+        from textwrap import fill
+        print fill('Are you sure you want to launch (create) the following new instances '
+                   'with the following settings and tags?', 80)
+        print '-' * 80
+        for launcher in launchers:
+            print
+            print launcher.prettyformat()
+        print '-' * 80
+        Ec2LaunchInstance._confirm('Create instances')
+
+    @staticmethod
+    def _confirm(question):
+        if raw_input(question + ' [y/N]? ').lower() != 'y':
+            abort('Aborted')
+
+    def __init__(self, extra_tags={}, configname=None,
+                 configname_help='Please select one of the following configurations:',
+                 duplicate_name_protection=True):
+        """
+        Initialize the launcher. Runs :meth:`create_config_ask_if_none`.
+
+        :param configname:
+            Name of a configuration in
+            ``awsfab_settings.EC2_LAUNCH_CONFIGS``.
+            If it is ``None``, we ask the user for the configfile.
+        :param configname_help:
+            The help to show above the prompt for configname input (only used
+            if ``configname`` is ``None``.
+        """
+        if not awsfab_settings.EC2_LAUNCH_CONFIGS:
+            abort('You have no awsfab_settings.EC2_LAUNCH_CONFIGS.')
+        self.extra_tags = extra_tags
+
+        #: A config dict from awsfab_settings.EC2_LAUNCH_CONFIGS.
+        self.conf = {}
+
+        #: Keyword arguments for ``run_instances()``.
+        self.kw = {}
+
+        #: See the docs for the __init__ parameter.
+        self.configname = configname
+
+        #: See the docs for the __init__ parameter.
+        self.configname_help = configname_help
+
+        #: The instance launced by :meth:`.run_instance`. None when
+        #: run_instance() has not been invoked.
+        self.instance = None
+
+        self.create_config_ask_if_none()
+        if duplicate_name_protection:
+            self.check_if_name_exists()
+
+    def _ask_for_configname(self):
+        """
+        Ask the user for a configname.
+
+        :return: The user-provided configname.
+        """
+        print self.configname_help
+        print '-' * 80
+        fmt = '{0:>30} | {1}'
+        print fmt.format('NAME', 'DESCRIPTION')
+        for configname, config in awsfab_settings.EC2_LAUNCH_CONFIGS.iteritems():
+            description = config.get('description', '')
+            print fmt.format(configname, description)
+        print '-' * 80
+        configname = raw_input('Type name of config: ').strip()
+        return configname
+
+    def _configure(self, configname):
+        if not configname in awsfab_settings.EC2_LAUNCH_CONFIGS:
+            abort('"{configname}" is not in awsfab_settings.EC2_LAUNCH_CONFIGS'.format(**vars()))
+        conf = awsfab_settings.EC2_LAUNCH_CONFIGS[configname]
+        kw = dict(key_name = conf['key_name'],
+                  instance_type = conf['instance_type'],
+                  security_groups = conf['security_groups'])
+        if 'availability_zone' in conf:
+            kw['placement'] = conf['region'] + conf['availability_zone']
+        self.conf = conf
+        self.kw = kw
+
+    def check_if_name_exists(self):
+        import sys
+        name = self.get_all_tags().get('Name')
+        if name:
+            print
+            sys.stdout.write('Making sure no EC2 instance with Name={0} exists...'.format(name))
+            sys.stdout.flush()
+            try:
+                wrapper = Ec2InstanceWrapper.get_by_nametag(name)
+            except NoInstanceWithNameFound:
+                pass
+            else:
+                abort('An instance named {name} already exists.'.format(name=name))
+            print 'OK'
+            print
+
+    def create_config_ask_if_none(self):
+        """
+        Set :obj:`.kw` and :obj:`.conf` using :obj:`configname`.
+        Prompt the user for a configname if bool(:obj:`.configname`) is
+        ``False``.
+        """
+        if self.configname:
+            configname = self.configname
+        else:
+            configname = self._ask_for_configname()
+        self._configure(configname)
+
+    def get_all_tags(self):
+        """
+        Merge tags from the awsfab_settings.EC2_LAUNCH_CONFIGS config, and the
+        ``extra_tags`` parameter for __init__, and return the resulting dict.
+        """
+        tags = {}
+        if 'tags' in self.conf:
+            tags.update(self.conf['tags'])
+        if self.extra_tags:
+            tags.update(self.extra_tags)
+        return tags
+
+    def prettyformat(self):
+        """
+        Prettyformat the configuration.
+        """
+        from os import linesep
+        tags = self.get_all_tags()
+        info = '{kw}{linesep}Tags: {tags}'.format(kw=pformat(self.kw),
+                                                  linesep=linesep,
+                                                  tags=pformat(tags))
+        if 'Name' in tags:
+            name = tags['Name']
+            info = 'Name={name}:{linesep}{info}'.format(**vars())
+            info = '\n   '.join(info.splitlines())
+        return info
+
+    def confirm(self):
+        """
+        Use :meth:`prettyprint` to show the user their choices, and ask
+        for confirmation. Runs ``fabric.api.abort()`` if the user does
+        not confirm the choices.
+        """
+        from textwrap import fill
+        print fill('Are you sure you want to launch (create) a new instance '
+                   'with the following settings and tags?', 80)
+        print '-' * 80
+        print self.prettyformat()
+        print '-' * 80
+        Ec2LaunchInstance._confirm('Create instance')
+
+    def run_instance(self):
+        """
+        Run/launch the configured instance, and add the tags to the instance
+        (:meth:`.get_all_tags`).
+
+        :return: The launched instance.
+        """
+        connection = connect_to_region(region_name=self.conf['region'], **awsfab_settings.AUTH)
+        reservation = connection.run_instances(self.conf['ami'], **self.kw)
+        instance = reservation.instances[0]
+        self._add_tags(instance)
+        self.instance = instance
+        return instance
+
+    def _add_tag(self, instance, tagname, value, retries=0):
+        import time
+        from boto.exception import EC2ResponseError
+        try:
+            instance.add_tag(tagname, value)
+        except EC2ResponseError:
+            if retries > self.tag_retry_count:
+                raise
+            print ('Got EC2ResponseError while adding tag to {id}. Retrying in '
+                   '{sec} seconds...').format(id=instance.id, sec=self.tag_retry_sleep)
+            time.sleep(self.tag_retry_sleep)
+            self._add_tag(instance, tagname, value, retries=retries+1)
+
+    def _add_tags(self, instance):
+        for tagname, value in self.get_all_tags().iteritems():
+            self._add_tag(instance, tagname, value)
