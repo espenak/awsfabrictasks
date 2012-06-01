@@ -16,6 +16,12 @@ Code and issues
 Get the sourcecode, and submit issues at our github repo: https://github.com/espenak/awsfabrictasks
 
 
+Wiki
+====
+Please contribute your tips, tricks and guides to the
+[Wiki](https://github.com/espenak/awsfabrictasks/wiki).
+
+
 Getting started
 ===============
 
