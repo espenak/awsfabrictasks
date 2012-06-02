@@ -21,3 +21,7 @@ Run the unit tests with:
     $ python bootstrap.py
     $ bin/buildout
     $ bin/python setup.py nosetests
+
+For more details, use:
+
+    $ bin/python setup.py nosetests --verbosity=2
