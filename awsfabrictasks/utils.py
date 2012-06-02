@@ -87,3 +87,43 @@ def parse_bool(data):
     return ``False``.
     """
     return data in ('true', 'True', True)
+
+def force_slashend(path):
+    """
+    Return ``path`` suffixed with ``/`` (path is unchanged if it is already
+    suffixed with ``/``).
+    """
+    if not path.endswith('/'):
+        path = path + '/'
+    return path
+
+def force_noslashend(path):
+    """
+    Return ``path`` with any trailing ``/`` removed.
+    """
+    if path.endswith('/'):
+        path = path.rstrip('/')
+    return path
+
+def rsyncformat_path(source_path, sync_content=False):
+    """
+    rsync uses ``/`` in the source directory to determine if we should
+    sync a directory or the contents of a directory. How rsync works:
+
+    Sync contents:
+        Source path ending with ``/`` means sync the contents (just as if we
+        used ``/*`` except that ``*`` does not include hidden files).
+    Sync the directory:
+        Source path NOT ending with ``/`` means sync the directory. I.e.: If
+        the source is ``/etc/init.d``,  and the destination is ``/tmp``, the contents
+        of ``/etc/init.d`` is copied into ``/tmp/init.d/``.
+
+    This is error-prone, and the consequences can be severe if combined with
+    ``--delete``. Therefore, we use a boolean to distinguish between these two
+    methods of specifying source directory, and reformat the path using
+    :func:`force_slashend` and :func:`force_noslashend`.
+    """
+    if sync_content:
+        return force_slashend(source_path)
+    else:
+        return force_noslashend(source_path)
