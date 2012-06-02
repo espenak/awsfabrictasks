@@ -83,7 +83,7 @@ def sudo_upload_dir(local_dir, remote_dir, **chattr_kw):
 
 def parse_bool(data):
     """
-    Return ``True`` if data is one of:: ``'true', 'True', True``, and ``False``
-    if not.
+    Return ``True`` if data is one of:: ``'true', 'True', True``. Otherwise,
+    return ``False``.
     """
     return data in ('true', 'True', True)
