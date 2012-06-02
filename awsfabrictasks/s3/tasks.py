@@ -6,8 +6,11 @@ from os.path import exists
 
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import force_slashend
+from awsfabrictasks.utils import parse_bool
 from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
+from .api import S3File
+from .api import S3FileExistsError
 
 
 @task
@@ -98,12 +101,12 @@ def s3_createfile(bucketname, name, contents, overwrite=False):
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    key = Key(bucket)
-    key.key = name
-    if key.exists() and not overwrite:
-        abort('Key exists: {0}'.format(name))
-        return
-    key.set_contents_from_string(contents)
+    s3file = S3File(bucket, name)
+    try:
+        s3file.set_contents_from_string(contents, overwrite)
+    except S3FileExistsError, e:
+        abort(str(e))
+
 
 @task
 def s3_uploadfile(bucketname, name, localfile, overwrite=False):
@@ -116,12 +119,11 @@ def s3_uploadfile(bucketname, name, localfile, overwrite=False):
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    key = Key(bucket)
-    key.key = name
-    if key.exists() and not overwrite:
-        abort('Key exists: {0}'.format(name))
-        return
-    key.set_contents_from_filename(localfile)
+    s3file = S3File(bucket, name)
+    try:
+        s3file.set_contents_from_filename(localfile, overwrite)
+    except S3FileExistsError, e:
+        abort(str(e))
 
 @task
 def s3_printfile(bucketname, name):
@@ -132,9 +134,8 @@ def s3_printfile(bucketname, name):
     :param name: The key to print (In filesystem terms: absolute file path).
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    key = Key(bucket)
-    key.key = name
-    print key.get_contents_as_string()
+    s3file = S3File(bucket, name)
+    print s3file.get_contents_as_string()
 
 @task
 def s3_downloadfile(bucketname, name, localfile, overwrite=False):
@@ -148,11 +149,9 @@ def s3_downloadfile(bucketname, name, localfile, overwrite=False):
     """
     if exists(localfile) and not overwrite:
         abort('Local file exists: {0}'.format(localfile))
-        return
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    key = Key(bucket)
-    key.key = name
-    key.get_contents_to_filename(localfile)
+    s3file = S3File(bucket, name)
+    print s3file.get_contents_to_filename()
 
 @task
 def s3_delete(bucketname, name, noconfirm=False):
@@ -166,16 +165,11 @@ def s3_delete(bucketname, name, noconfirm=False):
         removing the key. Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    key = Key(bucket)
-    key.key = name
-    if not key.exists():
-        abort('Key does not exist: {0}'.format(name))
-        return
-    if not noconfirm in ('true', True, 'True'):
+    s3file = S3File(bucket, name)
+    if not parse_bool(noconfirm):
         if not confirm('Remove {0}?'.format(name)):
             abort('Aborted')
-            return
-    key.delete()
+    s3file.delete()
 
 
 @task
