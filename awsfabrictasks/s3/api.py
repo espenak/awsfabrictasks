@@ -1,11 +1,11 @@
 #from pprint import pformat
-from hashlib import sha256
 from fnmatch import fnmatchcase
 from boto.s3.connection import S3Connection
 from boto.s3.prefix import Prefix
 from boto.s3.key import Key
 
 from awsfabrictasks.conf import awsfab_settings
+from awsfabrictasks.utils import compute_localfile_md5sum
 
 
 class S3ConnectionError(Exception):
@@ -141,18 +141,39 @@ class S3FileDoesNotExist(S3FileErrorBase):
     Raised when an :class:`S3File` does not exist.
     """
 
+class S3FileNoInfo(S3FileErrorBase):
+    """
+    Raised when trying to use :class:`S3File` metadata before performing a HEAD
+    request.
+    """
+    def __str__(self):
+        return ('{0}: No info about the key. Use S3File.perform_headrequest(), '
+                'or initialize with head=True.').format(super(S3FileNoInfo, self).__str__())
+
+
 class S3File(object):
-    def __init__(self, bucket, name):
+    def __init__(self, bucket, name, head=False):
         self.bucket = bucket
         self.name = name
-        self.key = Key(bucket)
-        self.key.name = name
+        if head:
+            self.perform_headrequest()
+        else:
+            self.key = Key(bucket)
+            self.key.name = name
+
+    def perform_headrequest(self):
+        self.key = self.bucket.get_key(self.name)
 
     def _overwrite_check(self, overwrite):
         if not overwrite and self.key.exists():
             raise S3FileExistsError(self)
 
+    def _has_info_check(self):
+        if self.key.etag == None or self.key.is_latest == None:
+            raise S3FileNoInfo(self)
+
     def get_metadata(self, metadata_name):
+        self._has_info_check()
         return self.key.get_metadata(metadata_name)
 
     def get_checksum(self):
@@ -163,6 +184,20 @@ class S3File(object):
         Return ``True`` if the key/file exists in the S3 bucket.
         """
         return self.key.exists()
+
+    def get_etag(self):
+        """
+        Return the etag (the md5sum)
+        """
+        self._has_info_check()
+        return self.key.etag.strip('"')
+
+    def etag_matches_localfile(self, localfile):
+        """
+        Return ``True`` if the file at the path given in ``localfile`` has an
+        md5 hex-digested checksum matching the etag of this S3 key.
+        """
+        return self.get_etag() == compute_localfile_md5sum(localfile)
 
     def delete(self):
         """
