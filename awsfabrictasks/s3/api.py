@@ -14,6 +14,15 @@ class S3ConnectionError(Exception):
         super(S3ConnectionError, self).__init__(msg)
 
 
+def settingsformat_bucketname(bucketname):
+    """
+    Returns ``awsfab_settings.S3_BUCKET_PATTERN.format(bucketname=bucketname)``.
+
+    .. seealso:: :obj:`awsfabrictasks.default_settings.S3_BUCKET_PATTERN`.
+    """
+    return awsfab_settings.S3_BUCKET_PATTERN.format(bucketname=bucketname)
+
+
 class S3ConnectionWrapper(object):
     """
     S3 connection wrapper.
@@ -36,6 +45,14 @@ class S3ConnectionWrapper(object):
         """
         connection = S3Connection(**awsfab_settings.AUTH)
         return cls(connection)
+
+    @classmethod
+    def get_bucket_using_pattern(cls, bucketname):
+        """
+        Same as :meth:`.get_bucket`, however the ``bucketname`` is filtered
+        through :func:`.settingsformat_bucketname`.
+        """
+        return cls.get_bucket(settingsformat_bucketname(bucketname))
 
     @classmethod
     def get_bucket(cls, bucketname):

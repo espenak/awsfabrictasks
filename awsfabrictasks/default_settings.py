@@ -22,3 +22,26 @@ EXTRA_SSH_ARGS = '-o StrictHostKeyChecking=no'
 
 #: Configuration for ec2_launch_instance (see the docs)
 EC2_LAUNCH_CONFIGS = {}
+
+
+#: S3 directory delimiter.
+S3_DELIMITER = '/'
+
+#: S3 bucket suffix. This is used for all tasks taking bucketname as parameter.
+#: The actual bucketname used become::
+#:
+#:      S3_BUCKET_PATTERN.format(bucketname=bucketname)
+#:
+#: This is typically used to add your domain name or company name to all bucket
+#: names, but avoid having to type the entire name for each task. Examples::
+#:
+#:     S3_BUCKET_PATTERN = '{bucketname}.example.com'
+#:     S3_BUCKET_PATTERN = 'example.com.{bucketname}'
+#:
+#: The default, ``"{bucketname}"``, uses the bucket name as provided by the
+#: user without any changes.
+#:
+#: .. seealso::
+#:      :meth:`awsfabrictasks.s3.api.S3ConnectionWrapper.get_bucket_using_pattern`,
+#:      :func:`awsfabrictasks.s3.api.settingsformat_bucketname`
+S3_BUCKET_PATTERN = '{bucketname}'

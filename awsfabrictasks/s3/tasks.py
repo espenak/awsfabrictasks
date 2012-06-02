@@ -4,12 +4,15 @@ from fabric.contrib.console import confirm
 from os import linesep
 from os.path import exists
 
+from awsfabrictasks.conf import awsfab_settings
+from awsfabrictasks.utils import force_slashend
 from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
 
 
 @task
-def s3_ls(bucketname, prefix='', search=None, match=None, style='compact', delimiter='/'):
+def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
+          delimiter=awsfab_settings.S3_DELIMITER):
     """
     List all items with the given prefix within the given bucket.
 
@@ -41,9 +44,9 @@ def s3_ls(bucketname, prefix='', search=None, match=None, style='compact', delim
             - nameonly
 
     :param delimiter:
-        The delimiter to use. Defaults to ``/``.
+        The delimiter to use. Defaults to ``awsfab_settings.S3_DELIMITER``.
     """
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
 
     styles = ('compact', 'verbose', 'nameonly')
     if not style in styles:
@@ -94,7 +97,7 @@ def s3_createfile(bucketname, name, contents, overwrite=False):
     :param contents: The data to put in the bucket.
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     key = Key(bucket)
     key.key = name
     if key.exists() and not overwrite:
@@ -112,7 +115,7 @@ def s3_uploadfile(bucketname, name, localfile, overwrite=False):
     :param localfile: The local file to upload.
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     key = Key(bucket)
     key.key = name
     if key.exists() and not overwrite:
@@ -128,7 +131,7 @@ def s3_printfile(bucketname, name):
     :param bucketname: Name of an S3 bucket.
     :param name: The key to print (In filesystem terms: absolute file path).
     """
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     key = Key(bucket)
     key.key = name
     print key.get_contents_as_string()
@@ -146,7 +149,7 @@ def s3_downloadfile(bucketname, name, localfile, overwrite=False):
     if exists(localfile) and not overwrite:
         abort('Local file exists: {0}'.format(localfile))
         return
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     key = Key(bucket)
     key.key = name
     key.get_contents_to_filename(localfile)
@@ -162,7 +165,7 @@ def s3_delete(bucketname, name, noconfirm=False):
         If this is ``True``, we will not ask for confirmation before
         removing the key. Defaults to ``False``.
     """
-    bucket = S3ConnectionWrapper.get_bucket(bucketname)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     key = Key(bucket)
     key.key = name
     if not key.exists():
@@ -173,3 +176,18 @@ def s3_delete(bucketname, name, noconfirm=False):
             abort('Aborted')
             return
     key.delete()
+
+
+@task
+def s3_upload_dir(bucketname, local_dir, remote_dir):
+    """
+    :param bucketname: Name of an S3 bucket.
+    """
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
+    remote_dir = force_slashend(remote_dir)
+    currentfiles = list(bucket.list(prefix=remote_dir))
+    print currentfiles
+    """
+    from mimetypes import guess_type
+    guess_type(filemeta.filename)[0]
+    """
