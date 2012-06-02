@@ -2,6 +2,7 @@ from fabric.api import put, sudo
 from os import walk, remove
 from os.path import relpath, join
 from tempfile import NamedTemporaryFile
+from boto.utils import compute_md5
 
 
 def sudo_chown(remote_path, owner):
@@ -135,3 +136,14 @@ def rsyncformat_path(source_dir, sync_content=False):
         return force_slashend(source_dir)
     else:
         return force_noslashend(source_dir)
+
+def compute_localfile_md5sum(localfile):
+    """
+    Compute the hex-digested md5 checksum of the given ``localfile``.
+
+    :param localfile: Path to a file on the local filesystem.
+    """
+    fp = open(localfile, 'rb')
+    md5sum = compute_md5(fp)[0]
+    fp.close()
+    return md5sum
