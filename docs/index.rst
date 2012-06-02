@@ -19,7 +19,7 @@ Get the sourcecode, and submit issues at our github repo: https://github.com/esp
 Wiki
 ====
 Please contribute your tips, tricks and guides to the
-[Wiki](https://github.com/espenak/awsfabrictasks/wiki).
+`Wiki <https://github.com/espenak/awsfabrictasks/wiki>`_.
 
 
 Getting started
