@@ -22,5 +22,6 @@ setup(name = 'awsfabrictasks',
           'console_scripts': [
               'awsfab = awsfabrictasks.main:awsfab',
           ],
-      }
+      },
+      test_suite = 'nose.collector'
 )

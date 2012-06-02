@@ -14,3 +14,10 @@ guides/experiences to the wiki, and to contribute changes using pull requests.
 
 ## History
 You can of course just browse the git history, however we track major changes in ``HISTORY.rst``.
+
+# Running the tests
+Run the unit tests with:
+
+    $ python bootstrap.py
+    $ bin/buildout
+    $ bin/python setup.py nosetests
