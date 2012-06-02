@@ -105,7 +105,7 @@ def force_noslashend(path):
         path = path.rstrip('/')
     return path
 
-def rsyncformat_path(source_path, sync_content=False):
+def rsyncformat_path(source_dir, sync_content=False):
     """
     rsync uses ``/`` in the source directory to determine if we should
     sync a directory or the contents of a directory. How rsync works:
@@ -122,8 +122,16 @@ def rsyncformat_path(source_path, sync_content=False):
     ``--delete``. Therefore, we use a boolean to distinguish between these two
     methods of specifying source directory, and reformat the path using
     :func:`force_slashend` and :func:`force_noslashend`.
+
+    :param source_dir:
+        The source directory. May be a remote directory (i.e.:
+        [USER@]HOSTNAME:PATH), or a local directory.
+    :param sync_content: Normally the function automatically makes sure
+        ``local_dir`` is not suffixed with ``/``, which makes rsync copy
+        ``local_dir`` into ``remote_dir``. With ``sync_content=True``,
+        the content of ``local_dir`` is synced into ``remote_dir`` instead.
     """
     if sync_content:
-        return force_slashend(source_path)
+        return force_slashend(source_dir)
     else:
-        return force_noslashend(source_path)
+        return force_noslashend(source_dir)
