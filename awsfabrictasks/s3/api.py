@@ -152,6 +152,9 @@ class S3FileNoInfo(S3FileErrorBase):
 
 
 class S3File(object):
+    """
+    Simplifies working with keys in S3 buckets.
+    """
     def __init__(self, bucket, name, head=False):
         self.bucket = bucket
         self.name = name

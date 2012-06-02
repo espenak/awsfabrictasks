@@ -11,6 +11,7 @@ from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
 from .api import S3File
 from .api import S3FileExistsError
+from .api import compute_localfile_md5sum
 
 
 @task
@@ -91,17 +92,17 @@ def s3_listbuckets():
 
 
 @task
-def s3_createfile(bucketname, name, contents, overwrite=False):
+def s3_createfile(bucketname, keyname, contents, overwrite=False):
     """
-    Create a file with the given name and contents.
+    Create a file with the given keyname and contents.
 
     :param bucketname: Name of an S3 bucket.
-    :param name: The key to create/overwrite (In filesystem terms: absolute file path).
+    :param keyname: The key to create/overwrite (In filesystem terms: absolute file path).
     :param contents: The data to put in the bucket.
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, name)
+    s3file = S3File(bucket, keyname)
     try:
         s3file.set_contents_from_string(contents, overwrite)
     except S3FileExistsError, e:
@@ -109,67 +110,79 @@ def s3_createfile(bucketname, name, contents, overwrite=False):
 
 
 @task
-def s3_uploadfile(bucketname, name, localfile, overwrite=False):
+def s3_uploadfile(bucketname, keyname, localfile, overwrite=False):
     """
     Upload a local file.
 
     :param bucketname: Name of an S3 bucket.
-    :param name: The key to create/overwrite (In filesystem terms: absolute file path).
+    :param keyname: The key to create/overwrite (In filesystem terms: absolute file path).
     :param localfile: The local file to upload.
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, name)
+    s3file = S3File(bucket, keyname)
     try:
         s3file.set_contents_from_filename(localfile, overwrite)
     except S3FileExistsError, e:
         abort(str(e))
 
 @task
-def s3_printfile(bucketname, name):
+def s3_printfile(bucketname, keyname):
     """
     Print the contents of the given key/file to stdout.
 
     :param bucketname: Name of an S3 bucket.
-    :param name: The key to print (In filesystem terms: absolute file path).
+    :param keyname: The key to print (In filesystem terms: absolute file path).
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, name)
+    s3file = S3File(bucket, keyname)
     print s3file.get_contents_as_string()
 
 @task
-def s3_downloadfile(bucketname, name, localfile, overwrite=False):
+def s3_downloadfile(bucketname, keyname, localfile, overwrite=False):
     """
     Print the contents of the given key/file to stdout.
 
     :param bucketname: Name of an S3 bucket.
-    :param name: The key to download (In filesystem terms: absolute file path).
+    :param keyname: The key to download (In filesystem terms: absolute file path).
     :param localfile: The local file to write the data to.
     :param overwrite: Overwrite local file if exists? Defaults to ``False``.
     """
     if exists(localfile) and not overwrite:
         abort('Local file exists: {0}'.format(localfile))
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, name)
+    s3file = S3File(bucket, keyname)
     print s3file.get_contents_to_filename()
 
 @task
-def s3_delete(bucketname, name, noconfirm=False):
+def s3_delete(bucketname, keyname, noconfirm=False):
     """
     Remove a "file" from the given bucket.
 
     :param bucketname: Name of an S3 bucket.
-    :param name: The key to remove (In filesystem terms: absolute file path).
+    :param keyname: The key to remove (In filesystem terms: absolute file path).
     :param noconfirm:
         If this is ``True``, we will not ask for confirmation before
         removing the key. Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, name)
+    s3file = S3File(bucket, keyname)
     if not parse_bool(noconfirm):
-        if not confirm('Remove {0}?'.format(name)):
+        if not confirm('Remove {0}?'.format(keyname)):
             abort('Aborted')
     s3file.delete()
+
+
+@task
+def s3_same_file(bucketname, keyname, localfile):
+    """
+    Check if the ``keyname`` in the given ``bucketname`` has the same md5sum as
+    the given ``localfile``. Files with the same md5sum are extremely likely to
+    have the same contents. Prints ``True`` or ``False``.
+    """
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
+    s3file = S3File(bucket, keyname, head=True)
+    print s3file.etag_matches_localfile(localfile)
 
 
 @task
