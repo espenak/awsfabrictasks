@@ -1,18 +1,30 @@
 from os.path import exists, join, expanduser, abspath
-from pprint import pformat, pprint
+from warnings import warn
+from pprint import pformat
 from boto.ec2 import connect_to_region
 from fabric.api import local, env, abort
 
-from ..conf import awsfab_settings
+from awsfabrictasks.conf import awsfab_settings
+from awsfabrictasks.utils import rsyncformat_path
 
 
-def force_slashend(path):
-    if not path.endswith('/'):
-        path = path + '/'
-    return path
+def ec2_rsync_upload_command(instancewrapper, local_dir, remote_dir,
+                             rsync_args='-av', sync_content=False):
+    """
+    Returns the rsync command used by :func:`ec2_rsync_upload`. Takes the
+    same parameters as :func:`ec2_rsync_upload`, except for the first
+    parameter, ``instancewrapper``, which is a :class:`Ec2InstanceWrapper`
+    object.
+    """
+    ssh_uri = instancewrapper.get_ssh_uri()
+    key_filename = instancewrapper.get_ssh_key_filename()
+    extra_ssh_args = awsfab_settings.EXTRA_SSH_ARGS
+    local_dir = rsyncformat_path(local_dir, sync_content)
+    rsync_cmd = ('rsync {rsync_args} -e "ssh -i {key_filename} {extra_ssh_args}" '
+                 '{local_dir} {ssh_uri}:{remote_dir}').format(**vars())
+    return rsync_cmd
 
-
-def ec2_rsync(local_dir, remote_dir, rsync_args='-av', sync_content=False):
+def ec2_rsync_upload(local_dir, remote_dir, rsync_args='-av', sync_content=False):
     """
     rsync ``local_dir`` into ``remote_dir`` on the current EC2 instance (the
     one returned by :meth:`Ec2InstanceWrapper.get_from_host_string`).
@@ -22,18 +34,51 @@ def ec2_rsync(local_dir, remote_dir, rsync_args='-av', sync_content=False):
         ``local_dir`` into ``remote_dir``. With ``sync_content=True``,
         the content of ``local_dir`` is synced into ``remote_dir`` instead.
     """
-    instance = Ec2InstanceWrapper.get_from_host_string()
-    ssh_uri = instance.get_ssh_uri()
-    key_filename = instance.get_ssh_key_filename()
-    extra_ssh_args = awsfab_settings.EXTRA_SSH_ARGS
-    if sync_content:
-        if not local_dir.endswith('/'):
-            local_dir = local_dir + '/'
-    else:
-        if local_dir.endswith('/'):
-            local_dir = local_dir.rstrip('/')
-    rsync_cmd = 'rsync {rsync_args} -e "ssh -i {key_filename} {extra_ssh_args}" {local_dir} {ssh_uri}:{remote_dir}'.format(**vars())
+    instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+    rsync_cmd = ec2_rsync_upload_command(instancewrapper, local_dir, remote_dir,
+                                         rsync_args, sync_content)
     local(rsync_cmd)
+
+def ec2_rsync(*args, **kwargs):
+    """
+    .. deprecated:: 1.0.13
+        Use :func:`ec2_rsync_upload` instead.
+    """
+    warn('Deprecated since 1.0.13. Use ec2_rsync_upload instead.', DeprecationWarning)
+    return ec2_rsync_upload(*args, **kwargs)
+
+def ec2_rsync_download_command(instancewrapper, remote_dir, local_dir,
+                               rsync_args='-av', sync_content=False):
+    """
+    Returns the rsync command used by :func:`ec2_rsync_download`. Takes the
+    same parameters as :func:`ec2_rsync_download`, except for the first
+    parameter, ``instancewrapper``, which is a :class:`Ec2InstanceWrapper`
+    object.
+    """
+    ssh_uri = instancewrapper.get_ssh_uri()
+    key_filename = instancewrapper.get_ssh_key_filename()
+    extra_ssh_args = awsfab_settings.EXTRA_SSH_ARGS
+    remote_dir = rsyncformat_path(remote_dir, sync_content)
+    rsync_cmd = ('rsync {rsync_args} -e "ssh -i {key_filename} {extra_ssh_args}" '
+                 '{ssh_uri}:{remote_dir} {local_dir}').format(**vars())
+    return rsync_cmd
+
+def ec2_rsync_download(remote_dir, local_dir, rsync_args='-av', sync_content=False):
+    """
+    rsync ``remote_dir`` on the current EC2 instance (the
+    one returned by :meth:`Ec2InstanceWrapper.get_from_host_string`) into
+    ``local_dir``.
+
+    :param sync_content: Normally the function automatically makes sure
+        ``local_dir`` is not suffixed with ``/``, which makes rsync copy
+        ``local_dir`` into ``remote_dir``. With ``sync_content=True``,
+        the content of ``local_dir`` is synced into ``remote_dir`` instead.
+    """
+    instance = Ec2InstanceWrapper.get_from_host_string()
+    rsync_cmd = ec2_rsync_download_command(instance, remote_dir, local_dir,
+                                           rsync_args, sync_content)
+    local(rsync_cmd)
+
 
 def _parse_instanceident(instanceid_with_optional_region):
     if ':' in instanceid_with_optional_region:

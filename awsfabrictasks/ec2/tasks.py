@@ -5,16 +5,20 @@ from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
 from fabric.api import task, abort, local, env
 from fabric.contrib.console import confirm
+from textwrap import fill
 
-from ..conf import awsfab_settings
+from awsfabrictasks.conf import awsfab_settings
+from awsfabrictasks.utils import force_slashend
+from awsfabrictasks.utils import parse_bool
 from api import Ec2InstanceWrapper
 from api import wait_for_stopped_state
 from api import wait_for_running_state
 from api import print_ec2_instance
 from api import Ec2LaunchInstance
-from api import ec2_rsync
-from api import force_slashend
-from ..utils import parse_bool
+from api import ec2_rsync_upload
+from api import ec2_rsync_upload_command
+from api import ec2_rsync_download
+from api import ec2_rsync_download_command
 
 
 
@@ -28,29 +32,55 @@ __all__ = [
 
 
 @task
-def ec2_rsync_download_dir(remote_dir, local_dir, rsync_args='-av --delete', noconfirm=False):
+def ec2_rsync_download_dir(remote_dir, local_dir, rsync_args='-av', noconfirm=False):
     """
+    Sync the contents of ``remote_dir`` into ``local_dir``. E.g.: if ``remote_dir`` is
+    ``/etc``, and ``local_dir`` is ``/tmp``, the ``/tmp/etc`` will be created on the local
+    host, and filled with all files in ``/etc`` on the EC2 instance.
+
+    :param remote_dir: The remote directory to download into local_dir.
+    :param local_dir: The local directory.
+    :param rsync_args: Arguments for ``rsync``. Defaults to ``-av``.
     :param noconfirm:
         If this is ``True``, we will not ask for confirmation before
         proceeding with the operation. Defaults to ``False``.
     """
-    from textwrap import fill
-    remote_dir = force_slashend(remote_dir)
+    kwargs = dict(remote_dir=remote_dir,
+                  local_dir=local_dir,
+                  rsync_args=rsync_args)
     if not parse_bool(noconfirm):
-        instance = Ec2InstanceWrapper.get_from_host_string()
-        ssh_uri = instance.get_ssh_uri()
-        ssh_path = '{ssh_uri}:{remote_dir}'.format(**vars())
-        print fill(('Are you sure you want to sync the contents of {remote_dir}'
-                    'into {local_dir}? This will sync the content of '
-                    '{ssh_path} into {local_dir}. E.g.:').format(**vars()), 80)
-        print '{remote_dir}'
+        instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+        print 'Are you sure you want to run:'
+        print '   ', ec2_rsync_download_command(instancewrapper, **kwargs)
         if not confirm('Proceed?'):
             abort('Aborted')
-            return
+    ec2_rsync_download(**kwargs)
 
 @task
-def ec2_rsync_upload_dir(local_dir, remote_dir, rsync_extra_args=''):
-    pass
+def ec2_rsync_upload_dir(local_dir, remote_dir, rsync_args='-av', noconfirm=False):
+    """
+    Sync the contents of ``local_dir`` into ``remote_dir`` on the EC2
+    instance. E.g.: if ``local_dir`` is ``/etc``, and ``remote_dir`` is
+    ``/tmp``, the ``/tmp/etc`` will be created on the EC2 instance, and filled
+    with all files in ``/etc`` on the local host.
+
+    :param local_dir: The local directory to upload to the EC2 instance.
+    :param remote_dir: The remote directory to upload local_dir into.
+    :param rsync_args: Arguments for ``rsync``. Defaults to ``-av``.
+    :param noconfirm:
+        If this is ``True``, we will not ask for confirmation before
+        proceeding with the operation. Defaults to ``False``.
+    """
+    kwargs = dict(local_dir=local_dir,
+                  remote_dir=remote_dir,
+                  rsync_args=rsync_args)
+    if not parse_bool(noconfirm):
+        instancewrapper = Ec2InstanceWrapper.get_from_host_string()
+        print 'Are you sure you want to run:'
+        print '   ', ec2_rsync_upload_command(instancewrapper, **kwargs)
+        if not confirm('Proceed?'):
+            abort('Aborted')
+    ec2_rsync_upload(**kwargs)
 
 @task
 def ec2_add_tag(tagname, value=''):
