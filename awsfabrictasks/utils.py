@@ -1,6 +1,7 @@
 from fabric.api import put, sudo
 from os import walk, remove
 from os.path import relpath, join
+from mimetypes import guess_type
 from tempfile import NamedTemporaryFile
 from boto.utils import compute_md5
 
@@ -147,3 +148,10 @@ def compute_localfile_md5sum(localfile):
     md5sum = compute_md5(fp)[0]
     fp.close()
     return md5sum
+
+def guess_contenttype(filename):
+    """
+    Return the content-type for the given ``filename``. Uses
+    :func:`mimetypes.guess_type`.
+    """
+    return guess_type(filename)[0]

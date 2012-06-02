@@ -3,6 +3,7 @@ from unittest import TestCase
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import force_noslashend
 from awsfabrictasks.utils import rsyncformat_path
+from awsfabrictasks.utils import guess_contenttype
 
 
 class TestUtils(TestCase):
@@ -19,3 +20,8 @@ class TestUtils(TestCase):
         self.assertEquals(rsyncformat_path('/path/to'), '/path/to')
         self.assertEquals(rsyncformat_path('/path/to', sync_content=True), '/path/to/')
         self.assertEquals(rsyncformat_path('/path/to'), rsyncformat_path('/path/to', sync_content=False))
+
+    def test_guess_contenttype(self):
+        self.assertEquals(guess_contenttype('hello.py'), 'text/x-python')
+        self.assertEquals(guess_contenttype('hello.txt'), 'text/plain')
+        self.assertEquals(guess_contenttype('hello.json'), 'application/json')
