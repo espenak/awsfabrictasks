@@ -107,6 +107,13 @@ def force_noslashend(path):
         path = path.rstrip('/')
     return path
 
+def slashpath(path):
+    """
+    Replace ``os.sep`` in ``path`` with ``/``.
+    """
+    from os import sep
+    return path.replace(sep, '/')
+
 def rsyncformat_path(source_dir, sync_content=False):
     """
     rsync uses ``/`` in the source directory to determine if we should

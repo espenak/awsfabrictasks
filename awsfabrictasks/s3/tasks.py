@@ -1,8 +1,7 @@
-from boto.s3.key import Key
 from fabric.api import task, abort
 from fabric.contrib.console import confirm
 from os import linesep
-from os.path import exists
+from os.path import exists, expanduser, abspath
 
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import force_slashend
@@ -11,7 +10,9 @@ from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
 from .api import S3File
 from .api import S3FileExistsError
-from .api import compute_localfile_md5sum
+from .api import s3list_s3filedict
+from .api import dirlist_absfilenames
+from .api import localpath_to_s3path
 
 
 @task
@@ -102,7 +103,7 @@ def s3_createfile(bucketname, keyname, contents, overwrite=False):
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname)
+    s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_string(contents, overwrite)
     except S3FileExistsError, e:
@@ -119,8 +120,9 @@ def s3_uploadfile(bucketname, keyname, localfile, overwrite=False):
     :param localfile: The local file to upload.
     :param overwrite: Overwrite if exists? Defaults to ``False``.
     """
+    localfile = expanduser(localfile)
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname)
+    s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_filename(localfile, overwrite)
     except S3FileExistsError, e:
@@ -135,7 +137,7 @@ def s3_printfile(bucketname, keyname):
     :param keyname: The key to print (In filesystem terms: absolute file path).
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname)
+    s3file = S3File.raw(bucket, keyname)
     print s3file.get_contents_as_string()
 
 @task
@@ -148,10 +150,11 @@ def s3_downloadfile(bucketname, keyname, localfile, overwrite=False):
     :param localfile: The local file to write the data to.
     :param overwrite: Overwrite local file if exists? Defaults to ``False``.
     """
+    localfile = expanduser(localfile)
     if exists(localfile) and not overwrite:
         abort('Local file exists: {0}'.format(localfile))
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname)
+    s3file = S3File.raw(bucket, keyname)
     print s3file.get_contents_to_filename()
 
 @task
@@ -166,7 +169,7 @@ def s3_delete(bucketname, keyname, noconfirm=False):
         removing the key. Defaults to ``False``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname)
+    s3file = S3File.raw(bucket, keyname)
     if not parse_bool(noconfirm):
         if not confirm('Remove {0}?'.format(keyname)):
             abort('Aborted')
@@ -174,27 +177,79 @@ def s3_delete(bucketname, keyname, noconfirm=False):
 
 
 @task
-def s3_same_file(bucketname, keyname, localfile):
+def s3_is_same_file(bucketname, keyname, localfile):
     """
-    Check if the ``keyname`` in the given ``bucketname`` has the same md5sum as
-    the given ``localfile``. Files with the same md5sum are extremely likely to
-    have the same contents. Prints ``True`` or ``False``.
+    Check if the ``keyname`` in the given ``bucketname`` has the same etag as
+    the md5 checksum of the given ``localfile``. Files with the same md5sum are
+    extremely likely to have the same contents. Prints ``True`` or ``False``.
+
+    Files matching as the same file by this task is considered the same file by
+    :func:`s3_upload_dir`.
     """
+    localfile = expanduser(localfile)
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3file = S3File(bucket, keyname, head=True)
+    s3file = S3File.from_head(bucket, keyname)
     print s3file.etag_matches_localfile(localfile)
 
-
 @task
-def s3_upload_dir(bucketname, local_dir, remote_dir):
+def s3_syncupload_dir(bucketname, local_dir, s3_prefix, verbosity=2, delete=False,
+                      pretend=False):
     """
+    Sync a local directory into a S3 bucket. Uses the same method as the
+    :func:`s3_is_same_file` task to determine if a local file differs from a
+    file on S3.
+
     :param bucketname: Name of an S3 bucket.
+    :param local_dir: The local directory to sync to S3.
+    :param s3_prefix: The S3 prefix to use for the uploaded files.
+    :param verbosity:
+        Controls the amount of output:
+
+            0 --- No output.
+            1 --- Only produce output for changes.
+            2 --- One line of output for each file.
+
+        Defaults to 2.
+    :param delete:
+        Delete remote files that are not present in ``local_dir``.
+    :param pretend:
+        Do not change anything. With ``verbosity=2``, this gives a good
+        overview of the changes applied by running the task.
     """
+    verbosity = int(verbosity)
+    def verboseprint(level, msg, *args, **kwargs):
+        if verbosity >= level:
+            print msg.format(*args, **kwargs)
+
+    pretend = parse_bool(pretend)
+    s3_prefix = force_slashend(s3_prefix)
+    local_dir = abspath(expanduser(local_dir))
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    remote_dir = force_slashend(remote_dir)
-    currentfiles = list(bucket.list(prefix=remote_dir))
-    print currentfiles
-    """
-    from mimetypes import guess_type
-    guess_type(filemeta.filename)[0]
-    """
+    s3filedict = s3list_s3filedict(bucket, s3_prefix)
+    localfiles_set = dirlist_absfilenames(local_dir)
+
+    synced_s3paths = set()
+    for localpath in localfiles_set:
+        s3path = localpath_to_s3path(local_dir, localpath, s3_prefix)
+        synced_s3paths.add(s3path)
+        if s3path in s3filedict:
+            s3file = s3filedict[s3path]
+            if s3file.etag_matches_localfile(localpath):
+                verboseprint(2, 'UNCHANGED {0}', s3path)
+            else:
+                if not pretend:
+                    s3file.set_contents_from_filename(localpath, overwrite=True)
+                verboseprint(1, 'UPDATED {0}', s3path)
+        else:
+            s3file = S3File.raw(bucket, s3path)
+            if not pretend:
+                s3file.set_contents_from_filename(localpath)
+            verboseprint(1, 'CREATED {0}', s3path)
+
+    if parse_bool(delete):
+        only_remote_keys = set(s3filedict.keys()).difference(synced_s3paths)
+        for keyname in only_remote_keys:
+            s3file = S3File.raw(bucket, keyname)
+            if not pretend:
+                s3file.delete()
+            verboseprint(1, 'DELETED {0}', keyname)

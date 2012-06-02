@@ -1,9 +1,13 @@
 #from pprint import pformat
 from fnmatch import fnmatchcase
+from os import walk
+from os.path import join, abspath
 from boto.s3.connection import S3Connection
 from boto.s3.prefix import Prefix
 from boto.s3.key import Key
 
+from awsfabrictasks.utils import force_slashend
+from awsfabrictasks.utils import slashpath
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import compute_localfile_md5sum
 
@@ -111,6 +115,45 @@ def iter_bucketcontents(bucket, prefix, match, delimiter, formatter=lambda key: 
             yield formatter(key)
 
 
+def dirlist_absfilenames(dirpath):
+    """
+    Get all the files within the given ``dirpath`` as a set of absolute
+    filenames.
+    """
+    allfiles = set()
+    for root, dirs, files in walk(dirpath):
+        abspaths = map(lambda filename: join(root, filename), files)
+        allfiles.update(abspaths)
+    return allfiles
+
+def s3list_s3filedict(bucket, prefix):
+    """
+    Get all the keys with the given ``prefix`` as a dict with key-name as key
+    and the key-object wrappen in a :class:`S3File` as value.
+    """
+    result = {}
+    for key in bucket.list(prefix=prefix):
+        result[key.name] = S3File(bucket, key)
+    return result
+
+def localpath_to_s3path(localdir, localpath, s3prefix):
+    """
+    Convert a local filepath into a S3 path within the given ``s3prefix``.
+
+    :param localdir: The local directory that corresponds to ``s3prefix``.
+    :param localpath: Path to a file within ``localdir``.
+    :param s3prefix: Prefix to use for the file on S3.
+
+    Example::
+    >>> localpath_to_s3path('/mydir', '/mydir/hello/world.txt', 'my/test')
+    'my/test/hello/world.txt'
+    """
+    localdir = force_slashend(slashpath(abspath(localdir)))
+    localpath = slashpath(abspath(localpath))
+    s3prefix = force_slashend(s3prefix)
+    relpath = localpath[len(localdir):]
+    return s3prefix + relpath
+
 class S3ErrorBase(Exception):
     """
     Base class for all S3 errors. Never raised directly.
@@ -155,17 +198,20 @@ class S3File(object):
     """
     Simplifies working with keys in S3 buckets.
     """
-    def __init__(self, bucket, name, head=False):
-        self.bucket = bucket
-        self.name = name
-        if head:
-            self.perform_headrequest()
-        else:
-            self.key = Key(bucket)
-            self.key.name = name
 
-    def perform_headrequest(self):
-        self.key = self.bucket.get_key(self.name)
+    @classmethod
+    def raw(cls, bucket, name):
+        key = Key(bucket)
+        key.name = name
+        return cls(bucket, key)
+
+    @classmethod
+    def from_head(cls, bucket, name):
+        return cls(bucket, bucket.get_key(name))
+
+    def __init__(self, bucket, key):
+        self.bucket = bucket
+        self.key = key
 
     def _overwrite_check(self, overwrite):
         if not overwrite and self.key.exists():
@@ -251,12 +297,5 @@ class S3File(object):
 
     def __str__(self):
         return '{classname}({bucket}, {name})'.format(classname=self.__class__.__name__,
-                                                      **self.__dict__)
-
-
-#class S3Sync(object):
-
-    #def __init__(self, bucketname, local_dir, remote_dir):
-        #self.bucketname = bucketname
-        #self.local_dir = local_dir
-        #self.remote_dir = remote_dir
+                                                      bucket=self.bucket,
+                                                      name=self.key.name)
