@@ -7,7 +7,8 @@ from boto.s3.prefix import Prefix
 from boto.s3.key import Key
 
 from awsfabrictasks.utils import force_slashend
-from awsfabrictasks.utils import slashpath
+from awsfabrictasks.utils import localpath_to_slashpath
+from awsfabrictasks.utils import slashpath_to_localpath
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import compute_localfile_md5sum
 
@@ -148,11 +149,27 @@ def localpath_to_s3path(localdir, localpath, s3prefix):
     >>> localpath_to_s3path('/mydir', '/mydir/hello/world.txt', 'my/test')
     'my/test/hello/world.txt'
     """
-    localdir = force_slashend(slashpath(abspath(localdir)))
-    localpath = slashpath(abspath(localpath))
+    localdir = force_slashend(localpath_to_slashpath(abspath(localdir)))
+    localpath = localpath_to_slashpath(abspath(localpath))
     s3prefix = force_slashend(s3prefix)
     relpath = localpath[len(localdir):]
     return s3prefix + relpath
+
+def s3path_to_localpath(s3prefix, s3path, localdir):
+    """
+    Convert a s3 filepath into a local filepath within the given ``localdir``.
+
+    :param s3prefix: Prefix used for the file on S3.
+    :param s3path: Path to a file within ``s3prefix``.
+    :param localdir: The local directory that corresponds to ``s3prefix``.
+
+    Example::
+    >>> s3path_to_localpath('mydir/', 'mydir/hello/world.txt', '/my/test')
+    '/my/test/hello/world.txt'
+    """
+    s3prefix = force_slashend(s3prefix)
+    localpath = slashpath_to_localpath(s3path[len(s3prefix):])
+    return join(localdir, localpath)
 
 class S3ErrorBase(Exception):
     """
@@ -299,3 +316,70 @@ class S3File(object):
         return '{classname}({bucket}, {name})'.format(classname=self.__class__.__name__,
                                                       bucket=self.bucket,
                                                       name=self.key.name)
+
+
+class S3SyncIterFile(object):
+    """
+    Objects of this class is yielded by :meth:`S3Sync.iterfiles`.
+    Contains info about where the file exists, its local and S3 path (even if
+    it does not exist).
+    """
+    def __init__(self):
+        self.localpath = None
+        self.localexists = False
+        self.s3path = None
+        self.s3file = None
+        self.s3exists = False
+
+class S3Sync(object):
+    QUIET, DEBUG, INFO = (1, 2, 3)
+
+    def __init__(self, bucket, local_dir, s3prefix):
+        self.bucket = bucket
+        self.local_dir = local_dir
+        self.s3prefix = force_slashend(s3prefix)
+
+    def verboseprint(self, level, msg, *args, **kwargs):
+        if self.verbosity >= level:
+            print msg.format(*args, **kwargs)
+
+    def _get_localfiles_set(self):
+        return dirlist_absfilenames(self.local_dir)
+
+    def _get_s3filedict(self):
+        return s3list_s3filedict(self.bucket, self.s3prefix)
+
+    def iterfiles(self):
+        """
+        Iterate over all files both local and within the S3 prefix.
+        Yields :class:`S3SyncIterFile` objects.
+        """
+        s3filedict = self._get_s3filedict()
+        localfiles_set = self._get_localfiles_set()
+        synced_s3paths = set()
+
+        # Handle files that are locally, and possibly also on S3
+        for localpath in localfiles_set:
+            syncfile = S3SyncIterFile()
+            syncfile.localpath = localpath
+            syncfile.localexists = True
+            syncfile.s3path = localpath_to_s3path(self.local_dir, localpath, self.s3prefix)
+            synced_s3paths.add(syncfile.s3path)
+            syncfile.s3exists = syncfile.s3path in s3filedict
+            if syncfile.s3exists:
+                syncfile.s3file = s3filedict[syncfile.s3path]
+            else:
+                syncfile.s3file = S3File.raw(self.bucket, syncfile.s3path)
+            yield syncfile
+
+        # Handle files that are only on S3
+        only_remote_keys = set(s3filedict.keys()).difference(synced_s3paths)
+        for s3path in only_remote_keys:
+            s3file = S3File.raw(self.bucket, s3path)
+            syncfile = S3SyncIterFile()
+            syncfile.s3path = s3path
+            syncfile.s3file = s3filedict[syncfile.s3path]
+            syncfile.s3exists = True
+            syncfile.localexists = False
+            syncfile.localpath = s3path_to_localpath(self.s3prefix, s3path, self.local_dir)
+            yield syncfile

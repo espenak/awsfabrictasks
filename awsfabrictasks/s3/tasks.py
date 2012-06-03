@@ -192,7 +192,7 @@ def s3_is_same_file(bucketname, keyname, localfile):
     print s3file.etag_matches_localfile(localfile)
 
 @task
-def s3_syncupload_dir(bucketname, local_dir, s3_prefix, verbosity=2, delete=False,
+def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False,
                       pretend=False):
     """
     Sync a local directory into a S3 bucket. Uses the same method as the
@@ -201,7 +201,7 @@ def s3_syncupload_dir(bucketname, local_dir, s3_prefix, verbosity=2, delete=Fals
 
     :param bucketname: Name of an S3 bucket.
     :param local_dir: The local directory to sync to S3.
-    :param s3_prefix: The S3 prefix to use for the uploaded files.
+    :param s3prefix: The S3 prefix to use for the uploaded files.
     :param verbosity:
         Controls the amount of output:
 
@@ -222,15 +222,15 @@ def s3_syncupload_dir(bucketname, local_dir, s3_prefix, verbosity=2, delete=Fals
             print msg.format(*args, **kwargs)
 
     pretend = parse_bool(pretend)
-    s3_prefix = force_slashend(s3_prefix)
+    s3prefix = force_slashend(s3prefix)
     local_dir = abspath(expanduser(local_dir))
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3filedict = s3list_s3filedict(bucket, s3_prefix)
+    s3filedict = s3list_s3filedict(bucket, s3prefix)
     localfiles_set = dirlist_absfilenames(local_dir)
 
     synced_s3paths = set()
     for localpath in localfiles_set:
-        s3path = localpath_to_s3path(local_dir, localpath, s3_prefix)
+        s3path = localpath_to_s3path(local_dir, localpath, s3prefix)
         synced_s3paths.add(s3path)
         if s3path in s3filedict:
             s3file = s3filedict[s3path]

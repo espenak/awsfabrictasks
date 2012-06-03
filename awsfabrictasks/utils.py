@@ -107,12 +107,19 @@ def force_noslashend(path):
         path = path.rstrip('/')
     return path
 
-def slashpath(path):
+def localpath_to_slashpath(path):
     """
     Replace ``os.sep`` in ``path`` with ``/``.
     """
     from os import sep
     return path.replace(sep, '/')
+
+def slashpath_to_localpath(path):
+    """
+    Replace ``/`` in ``path`` with ``os.sep`` .
+    """
+    from os import sep
+    return path.replace('/', sep)
 
 def rsyncformat_path(source_dir, sync_content=False):
     """

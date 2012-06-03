@@ -6,6 +6,7 @@ from os.path import join, exists, dirname
 
 from awsfabrictasks.s3.api import dirlist_absfilenames
 from awsfabrictasks.s3.api import localpath_to_s3path
+from awsfabrictasks.s3.api import s3path_to_localpath
 
 def makefile(tempdir, path, contents):
     path = join(tempdir, *path.split('/'))
@@ -42,6 +43,10 @@ class TestLocalpathToS3path(TestCase):
     def tearDown(self):
         rmtree(self.tempdir)
 
-    def test_dirlist_absfilenames(self):
+    def test_localpath_to_s3path(self):
         s3path = localpath_to_s3path(self.tempdir, join(self.tempdir, 'hello/world.txt'), 'my/test')
         self.assertEquals(s3path, 'my/test/hello/world.txt')
+
+    def test_s3path_to_localpath(self):
+        localpath = s3path_to_localpath('mydir/', 'mydir/hello/world.txt', join(self.tempdir, 'my', 'test'))
+        self.assertEquals(localpath, join(self.tempdir, 'my', 'test', 'hello', 'world.txt'))
