@@ -1,6 +1,12 @@
 History
 =======
 
+Version 1.0.13
+--------------
+- More S3 tasks, including sync-up/download directories.
+- EC2 rsync upload and download. Deprecates ec2_rsync.
+- Bash completion script.
+
 Version 1.0.12
 --------------
 - Basic S3 tasks.
