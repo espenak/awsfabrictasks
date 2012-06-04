@@ -13,6 +13,10 @@ from .api import S3FileExistsError
 from .api import S3Sync
 
 
+__all__ = ['s3_ls', 's3_listbuckets', 's3_createfile', 's3_uploadfile',
+           's3_printfile', 's3_downloadfile', 's3_delete', 's3_is_same_file',
+           's3_syncupload_dir', 's3_syncdownload_dir']
+
 @task
 def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
           delimiter='/'):
