@@ -234,10 +234,12 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, loglevel='INFO', delete=F
                 log.debug('UNCHANGED %s', logname)
             else:
                 if not pretend:
+                    log.debug('Uploading %s', logname)
                     syncfile.s3file.set_contents_from_filename(syncfile.localpath, overwrite=True)
                 log.info('UPDATED %s', logname)
         elif syncfile.localexists:
             if not pretend:
+                log.debug('Uploading %s', logname)
                 syncfile.s3file.set_contents_from_filename(syncfile.localpath)
             log.info('CREATED %s', logname)
         else:
@@ -289,10 +291,12 @@ def s3_syncdownload_dir(bucketname, s3prefix, local_dir, loglevel='INFO', delete
                 log.debug('UNCHANGED %s', logname)
             else:
                 if not pretend:
+                    log.debug('Downloading %s', logname)
                     syncfile.download_s3file_to_localfile()
                 log.info('UPDATED %s', logname)
         elif syncfile.s3exists:
             if not pretend:
+                log.debug('Downloading %s', logname)
                 syncfile.download_s3file_to_localfile()
             log.info('CREATED %s', logname)
         else:
