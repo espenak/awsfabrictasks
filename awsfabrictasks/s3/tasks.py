@@ -4,7 +4,6 @@ from os import linesep
 from os.path import exists, expanduser, abspath
 
 from awsfabrictasks.conf import awsfab_settings
-from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import parse_bool
 from awsfabrictasks.utils import configureStreamLoggerForTask
 from awsfabrictasks.utils import getLoglevelFromString
@@ -12,9 +11,7 @@ from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
 from .api import S3File
 from .api import S3FileExistsError
-from .api import s3list_s3filedict
-from .api import dirlist_absfilenames
-from .api import localpath_to_s3path
+from .api import S3Sync
 
 
 @task
@@ -212,7 +209,7 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, loglevel='INFO', delete=F
             INFO --- Only produce output for changes.
             DEBUG --- One line of output for each file.
 
-        Defaults to 2.
+        Defaults to "INFO".
     :param delete:
         Delete remote files that are not present in ``local_dir``.
     :param pretend:
@@ -221,36 +218,28 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, loglevel='INFO', delete=F
     """
     log = configureStreamLoggerForTask(__name__, 's3_syncupload_dir',
                                        getLoglevelFromString(loglevel))
-
-    pretend = parse_bool(pretend)
-    s3prefix = force_slashend(s3prefix)
     local_dir = abspath(expanduser(local_dir))
+    delete = parse_bool(delete)
+    pretend = parse_bool(pretend)
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
-    s3filedict = s3list_s3filedict(bucket, s3prefix)
-    localfiles_set = dirlist_absfilenames(local_dir)
-
-    synced_s3paths = set()
-    for localpath in localfiles_set:
-        s3path = localpath_to_s3path(local_dir, localpath, s3prefix)
-        synced_s3paths.add(s3path)
-        if s3path in s3filedict:
-            s3file = s3filedict[s3path]
-            if s3file.etag_matches_localfile(localpath):
-                log.debug('UNCHANGED %s', s3path)
+    if pretend:
+        log.info('Running in pretend mode. Not changes are made.')
+    for syncfile in S3Sync(bucket, local_dir, s3prefix).iterfiles():
+        if syncfile.both_exists():
+            if syncfile.etag_matches_localfile():
+                log.debug('UNCHANGED %s', syncfile.s3path)
             else:
                 if not pretend:
-                    s3file.set_contents_from_filename(localpath, overwrite=True)
-                log.info('UPDATED %s', s3path)
+                    syncfile.s3file.set_contents_from_filename(syncfile.localpath, overwrite=True)
+                log.info('UPDATED %s', syncfile.s3path)
+        elif syncfile.localexists:
+            if not pretend:
+                syncfile.s3file.set_contents_from_filename(syncfile.localpath)
+            log.info('CREATED %s', syncfile.s3path)
         else:
-            s3file = S3File.raw(bucket, s3path)
-            if not pretend:
-                s3file.set_contents_from_filename(localpath)
-            log.info('CREATED %s', s3path)
-
-    if parse_bool(delete):
-        only_remote_keys = set(s3filedict.keys()).difference(synced_s3paths)
-        for keyname in only_remote_keys:
-            s3file = S3File.raw(bucket, keyname)
-            if not pretend:
-                s3file.delete()
-            log.info('DELETED %s', keyname)
+            if delete:
+                if not pretend:
+                    syncfile.s3file.delete()
+                log.info('DELETED %s', syncfile.s3path)
+            else:
+                log.debug('NOT DELETED %s (it does not exists locally)', syncfile.s3path)
