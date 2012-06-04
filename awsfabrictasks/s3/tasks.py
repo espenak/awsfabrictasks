@@ -1,6 +1,6 @@
 from fabric.api import task, abort
 from fabric.contrib.console import confirm
-from os import linesep
+from os import linesep, remove
 from os.path import exists, expanduser, abspath
 
 from awsfabrictasks.utils import parse_bool
@@ -222,23 +222,79 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, loglevel='INFO', delete=F
     pretend = parse_bool(pretend)
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     if pretend:
-        log.info('Running in pretend mode. Not changes are made.')
+        log.info('Running in pretend mode. No changes are made.')
     for syncfile in S3Sync(bucket, local_dir, s3prefix).iterfiles():
+        logname = '{0}:{1}'.format(bucket.name, syncfile.s3path)
         if syncfile.both_exists():
             if syncfile.etag_matches_localfile():
-                log.debug('UNCHANGED %s', syncfile.s3path)
+                log.debug('UNCHANGED %s', logname)
             else:
                 if not pretend:
                     syncfile.s3file.set_contents_from_filename(syncfile.localpath, overwrite=True)
-                log.info('UPDATED %s', syncfile.s3path)
+                log.info('UPDATED %s', logname)
         elif syncfile.localexists:
             if not pretend:
                 syncfile.s3file.set_contents_from_filename(syncfile.localpath)
-            log.info('CREATED %s', syncfile.s3path)
+            log.info('CREATED %s', logname)
         else:
             if delete:
                 if not pretend:
                     syncfile.s3file.delete()
-                log.info('DELETED %s', syncfile.s3path)
+                log.info('DELETED %s', logname)
             else:
-                log.debug('NOT DELETED %s (it does not exists locally)', syncfile.s3path)
+                log.debug('NOT DELETED %s (it does not exist locally)', logname)
+
+
+@task
+def s3_syncdownload_dir(bucketname, s3prefix, local_dir, loglevel='INFO', delete=False,
+                        pretend=False):
+    """
+    Sync a S3 prefix from a S3 bucket into a local directory. Uses the same
+    method as the :func:`s3_is_same_file` task to determine if a local file
+    differs from a file on S3.
+
+    :param bucketname: Name of an S3 bucket.
+    :param s3prefix: The S3 prefix to use for the uploaded files.
+    :param local_dir: The local directory to sync to S3.
+    :param loglevel:
+        Controls the amount of output:
+
+            QUIET --- No output.
+            INFO --- Only produce output for changes.
+            DEBUG --- One line of output for each file.
+
+        Defaults to "INFO".
+    :param delete:
+        Delete local files that are not present in ``s3prefix``.
+    :param pretend:
+        Do not change anything. With ``verbosity=2``, this gives a good
+        overview of the changes applied by running the task.
+    """
+    log = configureStreamLoggerForTask(__name__, 's3_syncupload_dir',
+                                       getLoglevelFromString(loglevel))
+    local_dir = abspath(expanduser(local_dir))
+    delete = parse_bool(delete)
+    pretend = parse_bool(pretend)
+    bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
+    if pretend:
+        log.info('Running in pretend mode. No changes are made.')
+    for syncfile in S3Sync(bucket, local_dir, s3prefix).iterfiles():
+        logname = 'LocalFS:{0}'.format(syncfile.localpath)
+        if syncfile.both_exists():
+            if syncfile.etag_matches_localfile():
+                log.debug('UNCHANGED %s', logname)
+            else:
+                if not pretend:
+                    syncfile.download_s3file_to_localfile()
+                log.info('UPDATED %s', logname)
+        elif syncfile.s3exists:
+            if not pretend:
+                syncfile.download_s3file_to_localfile()
+            log.info('CREATED %s', logname)
+        else:
+            if delete:
+                if not pretend:
+                    remove(syncfile.localpath)
+                log.info('DELETED %s', logname)
+            else:
+                log.debug('NOT DELETED %s (it does not exist on S3)', syncfile.localpath)

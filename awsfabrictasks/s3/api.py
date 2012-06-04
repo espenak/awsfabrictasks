@@ -1,11 +1,10 @@
 #from pprint import pformat
 from fnmatch import fnmatchcase
-from os import walk
-from os.path import join, abspath
+from os import walk, makedirs
+from os.path import join, abspath, exists, dirname
 from boto.s3.connection import S3Connection
 from boto.s3.prefix import Prefix
 from boto.s3.key import Key
-from collections import namedtuple
 
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import localpath_to_slashpath
@@ -350,10 +349,34 @@ class S3SyncIterFile(object):
                 's3exists={s3exists})').format(**self.__dict__)
 
     def both_exists(self):
+        """
+        Returns ``True`` if :obj:`.localexists` and :obj:`.s3exists`.
+        """
         return self.localexists and self.s3exists
 
     def etag_matches_localfile(self):
+        """
+        Shortcut for::
+
+            self.s3file.etag_matches_localfile(self.localpath)
+        """
         return self.s3file.etag_matches_localfile(self.localpath)
+
+    def create_localdir(self):
+        """
+        Create the directory containing :obj:`.localpath` if it does not exist.
+        """
+        dname = dirname(self.localpath)
+        if not exists(dname):
+            makedirs(dname)
+
+    def download_s3file_to_localfile(self):
+        """
+        :meth:`.create_localdir` and download the file at :obj:`.s3path` to
+        :obj:`.localpath`.
+        """
+        self.create_localdir()
+        self.s3file.get_contents_to_filename(self.localpath)
 
 class S3Sync(object):
     """
