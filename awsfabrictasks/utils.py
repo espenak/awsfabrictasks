@@ -36,12 +36,15 @@ def getLoglevelFromString(loglevelstring):
 def configureStreamLogger(loggername, level):
     """
     Configure a stdout/stderr logger (logging.StreamHandler) with the given
-    ``loggername`` and ``level``.
+    ``loggername`` and ``level``. If you are configuring logging for a
+    task, use :func:`configureStreamLoggerForTask`.
 
     This is suitable for log-configuration for a single task, where the user
     specifies a loglevel.
 
-    .. seealso: :func:`getLoglevelFromString`.
+    .. seealso:
+        :func:`configureStreamLoggerForTask`,
+        :func:`getLoglevelFromString`.
 
     :return: The configured logger.
     """
@@ -56,9 +59,32 @@ def configureStreamLogger(loggername, level):
 
 def configureStreamLoggerForTask(modulename, taskname, loglevel):
     """
+    Configure logging for a task.
+
     Shortcut for::
 
         configureStreamLogger(modulename + '.' + taskname, loglevel)
+
+    Example (note that what you put in the loglevel docs for your task depends
+    on how you use the logger)::
+
+        @task
+        mytask(loglevel='INFO'):
+            \"\"\"
+            Does some task.
+
+            :param loglevel:
+                Controls the amount of output:
+
+                    QUIET --- No output.
+                    INFO --- Only produce output for changes.
+                    DEBUG --- One line of output for each file.
+
+            Defaults to "INFO".
+            \"\"\"
+            log = configureStreamLoggerForTask(__name__, 's3_syncupload_dir',
+                                               getLoglevelFromString(loglevel))
+            log.info('Hello world')
     """
     return configureStreamLogger(modulename + '.' + taskname, loglevel)
 
