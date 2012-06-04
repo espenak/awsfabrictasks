@@ -5,6 +5,7 @@ from os.path import join, abspath
 from boto.s3.connection import S3Connection
 from boto.s3.prefix import Prefix
 from boto.s3.key import Key
+from collections import namedtuple
 
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import localpath_to_slashpath
@@ -325,14 +326,49 @@ class S3SyncIterFile(object):
     it does not exist).
     """
     def __init__(self):
+        #: The local path. Always set.
+        #: Use :obj:`.localexists` if you want to know if the local file exists.
         self.localpath = None
+
+        #: Local file exists?
         self.localexists = False
+
+        #: The S3 path. Always set.
+        #: Use :obj:`.s3exists` if you want to know if the S3 file exists.
         self.s3path = None
+
+        #: A :class:`S3File` object.
+        #: Use :obj:`.s3exists` if you want to know if the S3 file exists.
         self.s3file = None
+
+        #: S3 file exists?
         self.s3exists = False
 
+    def __str__(self):
+        return ('S3SyncIterFile(localpath={localpath}, '
+                'localexists={localexists}, s3path={s3path}, s3file={s3file}, '
+                's3exists={s3exists})').format(**self.__dict__)
+
+    def both_exists(self):
+        return self.localexists and self.s3exists
+
+    def etag_matches_localfile(self):
+        return self.s3file.etag_matches_localfile(self.localpath)
+
 class S3Sync(object):
+    """
+    Makes it easy to sync files to and from S3. This class does not make any
+    changes to the local filesyste, or S3, it only makes it easy to write
+    function that works with hierarkies of files synced locally and on S3.
+
+    A good example is the sourcecode for :func:`awsfabrictasks.s3.tasks.s3_syncupload_dir`.
+    """
     def __init__(self, bucket, local_dir, s3prefix):
+        """
+        :param bucket: A :class:`boto.rds.bucket.DBInstance` object.
+        :param local_dir: The local directory.
+        :param local_dir: The S3 key prefix that corresponds to ``local_dir``.
+        """
         self.bucket = bucket
         self.local_dir = local_dir
         self.s3prefix = force_slashend(s3prefix)
@@ -347,6 +383,12 @@ class S3Sync(object):
         """
         Iterate over all files both local and within the S3 prefix.
         Yields :class:`S3SyncIterFile` objects.
+
+        How it works:
+
+            - Uses :func:`dirlist_absfilenames` to get all local files in the ``local_dir``.
+            - Uses :func:`s3list_s3filedict` to get all S3 files in the ``s3prefix``.
+            - Uses these two sets of information to create :class:`S3SyncIterFile` objects.
         """
         s3filedict = self._get_s3filedict()
         localfiles_set = self._get_localfiles_set()
