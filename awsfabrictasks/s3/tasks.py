@@ -6,6 +6,8 @@ from os.path import exists, expanduser, abspath
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import parse_bool
+from awsfabrictasks.utils import configureStreamLoggerForTask
+from awsfabrictasks.utils import getLoglevelFromString
 from .api import S3ConnectionWrapper
 from .api import iter_bucketcontents
 from .api import S3File
@@ -191,8 +193,9 @@ def s3_is_same_file(bucketname, keyname, localfile):
     s3file = S3File.from_head(bucket, keyname)
     print s3file.etag_matches_localfile(localfile)
 
+
 @task
-def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False,
+def s3_syncupload_dir(bucketname, local_dir, s3prefix, loglevel='INFO', delete=False,
                       pretend=False):
     """
     Sync a local directory into a S3 bucket. Uses the same method as the
@@ -202,12 +205,12 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False
     :param bucketname: Name of an S3 bucket.
     :param local_dir: The local directory to sync to S3.
     :param s3prefix: The S3 prefix to use for the uploaded files.
-    :param verbosity:
+    :param loglevel:
         Controls the amount of output:
 
-            0 --- No output.
-            1 --- Only produce output for changes.
-            2 --- One line of output for each file.
+            QUIET --- No output.
+            INFO --- Only produce output for changes.
+            DEBUG --- One line of output for each file.
 
         Defaults to 2.
     :param delete:
@@ -216,10 +219,8 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False
         Do not change anything. With ``verbosity=2``, this gives a good
         overview of the changes applied by running the task.
     """
-    verbosity = int(verbosity)
-    def verboseprint(level, msg, *args, **kwargs):
-        if verbosity >= level:
-            print msg.format(*args, **kwargs)
+    log = configureStreamLoggerForTask(__name__, 's3_syncupload_dir',
+                                       getLoglevelFromString(loglevel))
 
     pretend = parse_bool(pretend)
     s3prefix = force_slashend(s3prefix)
@@ -235,16 +236,16 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False
         if s3path in s3filedict:
             s3file = s3filedict[s3path]
             if s3file.etag_matches_localfile(localpath):
-                verboseprint(2, 'UNCHANGED {0}', s3path)
+                log.debug('UNCHANGED %s', s3path)
             else:
                 if not pretend:
                     s3file.set_contents_from_filename(localpath, overwrite=True)
-                verboseprint(1, 'UPDATED {0}', s3path)
+                log.info('UPDATED %s', s3path)
         else:
             s3file = S3File.raw(bucket, s3path)
             if not pretend:
                 s3file.set_contents_from_filename(localpath)
-            verboseprint(1, 'CREATED {0}', s3path)
+            log.info('CREATED %s', s3path)
 
     if parse_bool(delete):
         only_remote_keys = set(s3filedict.keys()).difference(synced_s3paths)
@@ -252,4 +253,4 @@ def s3_syncupload_dir(bucketname, local_dir, s3prefix, verbosity=2, delete=False
             s3file = S3File.raw(bucket, keyname)
             if not pretend:
                 s3file.delete()
-            verboseprint(1, 'DELETED {0}', keyname)
+            log.info('DELETED %s', keyname)

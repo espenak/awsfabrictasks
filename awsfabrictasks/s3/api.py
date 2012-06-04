@@ -332,16 +332,10 @@ class S3SyncIterFile(object):
         self.s3exists = False
 
 class S3Sync(object):
-    QUIET, DEBUG, INFO = (1, 2, 3)
-
     def __init__(self, bucket, local_dir, s3prefix):
         self.bucket = bucket
         self.local_dir = local_dir
         self.s3prefix = force_slashend(s3prefix)
-
-    def verboseprint(self, level, msg, *args, **kwargs):
-        if self.verbosity >= level:
-            print msg.format(*args, **kwargs)
 
     def _get_localfiles_set(self):
         return dirlist_absfilenames(self.local_dir)

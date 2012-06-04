@@ -4,6 +4,63 @@ from os.path import relpath, join
 from mimetypes import guess_type
 from tempfile import NamedTemporaryFile
 from boto.utils import compute_md5
+import logging
+
+
+#: Map of strings to loglevels (for the logging module)
+loglevel_stringmap = {'DEBUG': logging.DEBUG,
+                      'INFO': logging.INFO,
+                      'WARN': logging.WARN,
+                      'ERROR': logging.ERROR,
+                      'CRITICAL': logging.CRITICAL,
+                      'QUIET': logging.CRITICAL}
+
+class InvalidLogLevel(KeyError):
+    """
+    Raised when :func:`getLoglevelFromString` gets an invalid ``loglevelstring``.
+    """
+
+def getLoglevelFromString(loglevelstring):
+    """
+    Lookup ``loglevelstring`` in :obj:`loglevel_stringmap`.
+
+    :raise InvalidLogLevel: If loglevelstring is not in :obj:`loglevel_stringmap`.
+    :return: The loglevel.
+    :rtype: int
+    """
+    try:
+        return loglevel_stringmap[loglevelstring]
+    except KeyError, e:
+        raise InvalidLogLevel('Invalid loglevel: {0}'.format(loglevelstring))
+
+def configureStreamLogger(loggername, level):
+    """
+    Configure a stdout/stderr logger (logging.StreamHandler) with the given
+    ``loggername`` and ``level``.
+
+    This is suitable for log-configuration for a single task, where the user
+    specifies a loglevel.
+
+    .. seealso: :func:`getLoglevelFromString`.
+
+    :return: The configured logger.
+    """
+    logger = logging.getLogger(loggername)
+    logger.setLevel(level)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(levelname)s] %(name)s: %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    return logger
+
+def configureStreamLoggerForTask(modulename, taskname, loglevel):
+    """
+    Shortcut for::
+
+        configureStreamLogger(modulename + '.' + taskname, loglevel)
+    """
+    return configureStreamLogger(modulename + '.' + taskname, loglevel)
 
 
 def sudo_chown(remote_path, owner):
