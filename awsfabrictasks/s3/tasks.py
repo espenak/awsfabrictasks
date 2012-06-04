@@ -3,7 +3,6 @@ from fabric.contrib.console import confirm
 from os import linesep
 from os.path import exists, expanduser, abspath
 
-from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import parse_bool
 from awsfabrictasks.utils import configureStreamLoggerForTask
 from awsfabrictasks.utils import getLoglevelFromString
@@ -16,7 +15,7 @@ from .api import S3Sync
 
 @task
 def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
-          delimiter=awsfab_settings.S3_DELIMITER):
+          delimiter='/'):
     """
     List all items with the given prefix within the given bucket.
 
@@ -48,7 +47,7 @@ def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
             - nameonly
 
     :param delimiter:
-        The delimiter to use. Defaults to ``awsfab_settings.S3_DELIMITER``.
+        The delimiter to use. Defaults to ``"/"``.
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
 

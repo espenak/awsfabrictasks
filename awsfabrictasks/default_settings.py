@@ -24,9 +24,6 @@ EXTRA_SSH_ARGS = '-o StrictHostKeyChecking=no'
 EC2_LAUNCH_CONFIGS = {}
 
 
-#: S3 directory delimiter.
-S3_DELIMITER = '/'
-
 #: S3 bucket suffix. This is used for all tasks taking bucketname as parameter.
 #: The actual bucketname used become::
 #:
