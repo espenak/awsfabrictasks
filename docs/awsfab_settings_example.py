@@ -18,6 +18,18 @@ ami = {
     'ubuntu-10.04-lts': 'ami-fb665f8f'
 }
 
+##################################################################
+# Example user_data
+# This script will be passed to the new instance at boot
+# time and run late in the boot sequence.
+# It can be used to do arbitrarily complex setup tasks.
+# info: http://ubuntu-smoser.blogspot.co.uk/2010/03/introducing-cloud-inits-cloud-config.html
+##################################################################
+user_data_example = """#!/bin/sh
+echo ========== Hello World: $(date) ==========
+echo "I have been up for $(cut -d\  -f 1 < /proc/uptime) sec"
+"""
+
 
 ###########################################################
 # Configuration for ec2_launch_instance
@@ -52,7 +64,8 @@ EC2_LAUNCH_CONFIGS = {
         #   - awsfab-ssh-user: The ``awsfab`` tasks use this user to log into your instance.
         'tags': {
             'awsfab-ssh-user': 'ubuntu'
-        }
+        },
+        'user_data': user_data_example
     }
 }
 

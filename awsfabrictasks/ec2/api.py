@@ -7,6 +7,19 @@ from fabric.api import local, env, abort
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import rsyncformat_path
 
+def zipit(ss):
+    """
+    Returns a string containing a user_data compatible gzip-file
+    of the zipped ss input.
+    Note(using zlib alone is not sufficient - we need a zipfile structure)
+    """
+    import StringIO
+    import gzip
+    out = StringIO.StringIO()
+    f = gzip.GzipFile(fileobj=out, mode='w')
+    f.write(ss)
+    f.close()
+    return out.getvalue()
 
 def ec2_rsync_upload_command(instancewrapper, local_dir, remote_dir,
                              rsync_args='-av', sync_content=False):
@@ -561,6 +574,11 @@ class Ec2LaunchInstance(object):
         kw = dict(key_name = conf['key_name'],
                   instance_type = conf['instance_type'],
                   security_groups = conf['security_groups'])
+        try:
+            user_data = zipit(conf['user_data'])
+            kw['user_data'] = user_data
+        except KeyError:
+            pass
         if 'availability_zone' in conf:
             kw['placement'] = conf['region'] + conf['availability_zone']
         self.conf = conf
@@ -612,7 +630,13 @@ class Ec2LaunchInstance(object):
         """
         from os import linesep
         tags = self.get_all_tags()
-        info = '{kw}{linesep}Tags: {tags}'.format(kw=pformat(self.kw),
+        stripped = self.kw.copy()
+        try:
+            del stripped['user_data']
+            stripped['user_data'] = "YES!"
+        except KeyError:
+            pass
+        info = '{kw}{linesep}Tags: {tags}'.format(kw=pformat(stripped),
                                                   linesep=linesep,
                                                   tags=pformat(tags))
         if 'Name' in tags:
