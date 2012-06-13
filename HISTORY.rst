@@ -1,6 +1,13 @@
 History
 =======
 
+Version 1.0.14
+--------------
+- Support for user_data in in Ec2LaunchInstance
+  (https://github.com/espenak/awsfabrictasks/pull/4)
+  Thanks to Mr. Russ Ferriday
+- Methods in awsfabrictasks.conf that makes it easier to unittest code.
+
 Version 1.0.13
 --------------
 - More S3 tasks, including sync-up/download directories.
