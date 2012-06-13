@@ -49,9 +49,23 @@ class Settings(object):
             self._apply_settings_from_module(local_settings)
         self._is_loaded = True
 
+    def set_settings(self, **settings):
+        """
+        Set all all the given settings as attributes of this object.
+
+        :raise ValueError: If any of the keys in ``settings`` is not uppercase.
+        """
+        for key, value in settings.iteritems():
+            if not self._is_setting(key):
+                raise ValueError('Settings must be all uppercase, and they can not begin with userscore (``_``).')
+            setattr(self, key, value)
+
+    def _is_setting(self, attrname):
+        return attrname == attrname.upper() and not attrname.startswith('_')
+
     def _apply_settings_from_module(self, settings_module):
         for setting in dir(settings_module):
-            if setting == setting.upper():
+            if self._is_setting(setting):
                 setattr(self, setting, getattr(settings_module, setting))
 
     def as_dict(self):
@@ -70,6 +84,23 @@ class Settings(object):
         """
         pprint(self.as_dict())
 
+    def clear_settings(self):
+        """
+        Clear all settings (intended for testing). Deletes all uppercase attributes.
+        """
+        for setting in dir(self):
+            if self._is_setting(setting):
+                delattr(self, setting)
+
+    def reset_settings(self, **settings):
+        """
+        Reset settings (intended for testing). Shortcut for::
+
+            clear_settings()
+            set_settings(**settings)
+        """
+        self.clear_settings()
+        self.set_settings(**settings)
 
 awsfab_settings = Settings()
 
