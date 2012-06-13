@@ -606,11 +606,9 @@ class Ec2LaunchInstance(object):
         Prompt the user for a configname if bool(:obj:`.configname`) is
         ``False``.
         """
-        if self.configname:
-            configname = self.configname
-        else:
-            configname = self._ask_for_configname()
-        self._configure(configname)
+        if not self.configname:
+            self.configname = self._ask_for_configname()
+        self._configure(self.configname)
 
     def get_all_tags(self):
         """
