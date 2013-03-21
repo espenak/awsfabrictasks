@@ -1,6 +1,12 @@
 History
 =======
 
+Version 1.1
+-----------
+- Prevent clash caused by addition of -t to underlying options
+  (https://github.com/espenak/awsfabrictasks/pull/8).
+  Thanks to Mr. Russ Ferriday
+
 Version 1.0.14
 --------------
 - Support for user_data in in Ec2LaunchInstance
