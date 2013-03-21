@@ -56,7 +56,7 @@ def awsfab():
                 )
             )
     state.env_options.append(
-            make_option('-T', '--ec2tags',
+            make_option('-G', '--ec2tags',
                 default='',
                 help=('Comma-separated list of tag=value pairs.')
                 )
