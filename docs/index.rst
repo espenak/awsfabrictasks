@@ -15,6 +15,15 @@ Code and issues
 ===============
 Get the sourcecode, and submit issues at our github repo: https://github.com/espenak/awsfabrictasks
 
+Contribute
+==========
+
+1. Create an `issue <https://github.com/espenak/awsfabrictasks/issues>`_
+   describing your problem, improvement, etc (unless you are fixing an existing
+   issue).
+2. Fix the issue and create a pull request. This is a perfect example of what a
+   pull request should include: https://github.com/espenak/awsfabrictasks/pull/9.
+
 
 Wiki
 ====
