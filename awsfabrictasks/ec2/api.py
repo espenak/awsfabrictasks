@@ -276,13 +276,13 @@ class Ec2InstanceWrapper(object):
         Connect to AWS and get the EC2 instance with the given tag:value pairs.
 
         :param tags
-            A string like 'role=testing,fake=yes' to AND a set of ec2 
+            A string like 'role=testing,fake=yes' to AND a set of ec2
             instance tags
         :param region:
             optional.
         :raise Ec2RegionConnectionError: If connecting to the region fails.
         :raise LookupError: If no matching instance was found in the region.
-        :return: A list of :class:`Ec2InstanceWrapper`s containing the 
+        :return: A list of :class:`Ec2InstanceWrapper`s containing the
             matching instances.
         """
         region = region is None and awsfab_settings.DEFAULT_REGION or region
@@ -420,7 +420,15 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
     for attrname in attrnames:
         if attrname.startswith('_'):
             continue
-        value = instance.__dict__[attrname]
+        try:
+            value = instance.__dict__[attrname]
+        except KeyError:
+            try:
+                # Simple backward compatible workaround to boto 2.6.0 attr
+                # changes with _state and _placement
+                value = instance.__dict__['_' + attrname]
+            except KeyError:
+                value = '**key "{k}" and "_{k}" missing**'.format(k=attrname)
         if not isinstance(value, (str, unicode, bool, int)):
             value = pformat(value, indent=indentspaces+3)
         print '{indent}{attrname}: {value}'.format(**vars())
