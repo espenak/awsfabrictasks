@@ -3,6 +3,13 @@ History
 
 Version 1.1
 -----------
+- Make ec2_list_instances work with boto 2.6.0 as well as earlier versions
+  (https://github.com/espenak/awsfabrictasks/pull/9).
+  Closes https://github.com/espenak/awsfabrictasks/issues/7
+  Thanks to Mr. Russ Ferriday
+
+Version 1.1
+-----------
 - Prevent clash caused by addition of -t to underlying options
   (https://github.com/espenak/awsfabrictasks/pull/8).
   Thanks to Mr. Russ Ferriday
