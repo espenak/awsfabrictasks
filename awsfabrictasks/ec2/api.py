@@ -285,6 +285,7 @@ class Ec2InstanceWrapper(object):
         :return: A list of :class:`Ec2InstanceWrapper`s containing the
             matching instances.
         """
+
         region = region is None and awsfab_settings.DEFAULT_REGION or region
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
