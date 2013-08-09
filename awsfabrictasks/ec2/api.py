@@ -293,7 +293,8 @@ class Ec2InstanceWrapper(object):
         tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.iteritems()))
         reservations = connection.get_all_instances(filters=tags)
         if len(reservations) == 0:
-            raise LookupError('No ec2 instances with tags{0}'.format(tags))
+            return []
+
         insts = []
         for r in reservations:
             for instance in r.instances:
