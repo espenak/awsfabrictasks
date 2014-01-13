@@ -4,9 +4,24 @@ History
 
 Version 1.2.0
 -------------
+
+Whats new?
+
 - Multitag Support
   As explained in https://github.com/espenak/awsfabrictasks/pull/11
   Thanks to Lucas Hrabovsky
+
+Backwards incompatible changes:
+
+- ``awsfabrictasks.ec2.api.Ec2InstanceWrapper.get_by_tagvalue()`` does not raise
+  ``LookupError`` anymore. It returns an empty list instead.
+- ``fabric.api.env`` and ``awsfabrictasks.ec2.api.Ec2InstanceWrapper`` is
+  no longer imported in ``awsfabrictasks/__init__.py``. So if you have
+  any code importing those from ``awsfabrictasks``, you need to update
+  it to import from the correct place.
+
+
+
 
 Version 1.1.1
 -----------
