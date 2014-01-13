@@ -281,7 +281,6 @@ class Ec2InstanceWrapper(object):
         :param region:
             optional.
         :raise Ec2RegionConnectionError: If connecting to the region fails.
-        :raise LookupError: If no matching instance was found in the region.
         :return: A list of :class:`Ec2InstanceWrapper`s containing the
             matching instances.
         """
