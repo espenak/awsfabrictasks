@@ -285,6 +285,7 @@ class Ec2InstanceWrapper(object):
         :return: A list of :class:`Ec2InstanceWrapper`s containing the
             matching instances.
         """
+
         region = region is None and awsfab_settings.DEFAULT_REGION or region
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
@@ -292,7 +293,8 @@ class Ec2InstanceWrapper(object):
         tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.iteritems()))
         reservations = connection.get_all_instances(filters=tags)
         if len(reservations) == 0:
-            raise LookupError('No ec2 instances with tags{0}'.format(tags))
+            return []
+
         insts = []
         for r in reservations:
             for instance in r.instances:
