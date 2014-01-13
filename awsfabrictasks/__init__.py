@@ -1,7 +1,7 @@
 from fabric.api import env
 from .ec2.api import Ec2InstanceWrapper
 
-version = '1.1.1'
+version = '1.2.0'
 
 
 def expand_roledefs():

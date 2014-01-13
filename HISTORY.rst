@@ -1,6 +1,13 @@
 History
 =======
 
+
+Version 1.2.0
+-------------
+- Multitag Support
+  As explained in https://github.com/espenak/awsfabrictasks/pull/11
+  Thanks to Lucas Hrabovsky
+
 Version 1.1.1
 -----------
 - Make ec2_list_instances work with boto 2.6.0 as well as earlier versions
