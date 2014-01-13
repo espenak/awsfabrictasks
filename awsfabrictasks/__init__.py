@@ -1,10 +1,9 @@
-from fabric.api import env
-from .ec2.api import Ec2InstanceWrapper
-
 version = '1.2.0'
 
 
 def expand_roledefs():
+    from fabric.api import env
+    from awsfabrictasks.ec2.api import Ec2InstanceWrapper
     for k, v in env.roledefs.iteritems():
         if isinstance(v, dict):
             if 'ec2:tagged' in v:
