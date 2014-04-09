@@ -50,6 +50,8 @@ where you want to run the tests.
 
 
 ## Building the docs
-Make sure you have activated the virtualenv, and run:
+Make sure you have activated the virtualenv. Then run:
 
     $ fab docs
+
+Open ``build/docs/index.html`` in a browser.
