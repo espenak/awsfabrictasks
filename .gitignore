@@ -9,7 +9,8 @@
 .sass-cache/
 *.egg-info/
 
-docs/build/
+build/
+venv/
 
 *-eggs/
 .mr.developer.cfg

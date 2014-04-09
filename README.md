@@ -15,13 +15,41 @@ guides/experiences to the wiki, and to contribute changes using pull requests.
 ## History
 You can of course just browse the git history, however we track major changes in ``HISTORY.rst``.
 
-# Running the tests
-Run the unit tests with:
 
-    $ python bootstrap.py
-    $ bin/buildout
-    $ bin/python setup.py nosetests
+# Developing awsfabrictasks
+
+## Setting up the development enviroment
+You may need to install virtualenv:
+
+    $ pip install virtualenv
+
+Create a virtualenv:
+
+    $ virtualenv venv
+
+Activate the virtualenv in the current shell:
+
+    $ source venv/bin/activate
+
+Install the dependencies:
+
+    $ pip install -r requirements.txt
+
+
+## Running the tests
+Once you have created a development environment, run the tests with::
+
+    $ python setup.py nosetests
 
 For more details, use:
 
-    $ bin/python setup.py nosetests --verbosity=2
+    $ python setup.py nosetests --verbosity=2
+
+Note that you have to source ``venv/bin/activate`` once for each shell instance
+where you want to run the tests.
+
+
+## Building the docs
+Make sure you have activated the virtualenv, and run:
+
+    $ fab docs
