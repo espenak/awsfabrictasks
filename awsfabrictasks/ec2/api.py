@@ -454,7 +454,7 @@ class Ec2LaunchInstance(object):
         - Use :meth:`Ec2LaunchInstance.wait_for_running_state_many` to wait for all instances to launch.
         - Do something with the running instances.
 
-    Example of launching many instances:
+    Example of launching many instances::
 
         a = Ec2LaunchInstance(extra_tags={'Name': 'a'})
         b = Ec2LaunchInstance(extra_tags={'Name': 'b'})
