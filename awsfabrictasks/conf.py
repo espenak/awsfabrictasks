@@ -121,4 +121,4 @@ def print_default_settings():
     Print ``default_settings.py``.
     """
     path = join(dirname(default_settings.__file__), 'default_settings.py')
-    print open(path).read()
+    print(open(path).read())

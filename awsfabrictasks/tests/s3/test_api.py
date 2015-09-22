@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from unittest import TestCase
 from shutil import rmtree
 from tempfile import mkdtemp
