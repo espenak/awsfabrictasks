@@ -110,7 +110,7 @@ def s3_createfile(bucketname, keyname, contents, overwrite=False):
     s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_string(contents, overwrite)
-    except S3FileExistsError, e:
+    except S3FileExistsError as e:
         abort(str(e))
 
 
@@ -129,7 +129,7 @@ def s3_uploadfile(bucketname, keyname, localfile, overwrite=False):
     s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_filename(localfile, overwrite)
-    except S3FileExistsError, e:
+    except S3FileExistsError as e:
         abort(str(e))
 
 @task

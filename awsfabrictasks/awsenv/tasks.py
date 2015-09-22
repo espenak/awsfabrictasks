@@ -30,7 +30,7 @@ def awsenv_print(environment):
     print('-' * 80)
     try:
         instancewrappers = awsenvironment.get_ec2_instancewrappers()
-    except LookupError, e:
+    except LookupError as e:
         print str(e)
     else:
         for instancewrapper in instancewrappers:
