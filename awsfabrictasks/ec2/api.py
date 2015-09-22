@@ -15,11 +15,14 @@ def zipit(ss):
     of the zipped ss input.
     Note(using zlib alone is not sufficient - we need a zipfile structure)
     """
-    import StringIO
+    try:
+        from io import BytesIO as StringIO
+    except ImportError:
+        from StringIO import StringIO
     import gzip
-    out = StringIO.StringIO()
-    f = gzip.GzipFile(fileobj=out, mode='w')
-    f.write(ss)
+    out = StringIO()
+    f = gzip.GzipFile(fileobj=out, mode='wb')
+    f.write(ss.encode('utf-8'))
     f.close()
     return out.getvalue()
 
