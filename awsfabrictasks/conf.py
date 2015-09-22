@@ -55,7 +55,7 @@ class Settings(object):
 
         :raise ValueError: If any of the keys in ``settings`` is not uppercase.
         """
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if not self._is_setting(key):
                 raise ValueError('Settings must be all uppercase, and they can not begin with userscore (``_``).')
             setattr(self, key, value)
@@ -73,7 +73,7 @@ class Settings(object):
         Get all settings (uppercase attributes on this object) as a dict.
         """
         dct = {}
-        for attrname, value in self.__dict__.iteritems():
+        for attrname, value in self.__dict__.items():
             if attrname.upper() == attrname:
                 dct[attrname] = value
         return dct

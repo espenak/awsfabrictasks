@@ -291,7 +291,7 @@ class Ec2InstanceWrapper(object):
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
             raise Ec2RegionConnectionError(region)
-        tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.iteritems()))
+        tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.items()))
         reservations = connection.get_all_instances(filters=tags)
         if len(reservations) == 0:
             return []
@@ -696,5 +696,5 @@ class Ec2LaunchInstance(object):
             self._add_tag(instance, tagname, value, retries=retries+1)
 
     def _add_tags(self, instance):
-        for tagname, value in self.get_all_tags().iteritems():
+        for tagname, value in self.get_all_tags().items():
             self._add_tag(instance, tagname, value)
