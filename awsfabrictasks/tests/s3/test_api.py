@@ -14,7 +14,7 @@ def makefile(tempdir, path, contents):
     path = join(tempdir, *path.split('/'))
     if not exists(dirname(path)):
         makedirs(dirname(path))
-    open(path, 'wb').write(contents)
+    open(path, 'wb').write(contents.encode('utf-8'))
     return path
 
 
