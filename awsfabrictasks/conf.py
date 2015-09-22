@@ -1,10 +1,11 @@
+from __future__ import print_function
 import sys
 from os.path import expanduser, join, exists, dirname
 from pprint import pprint
 from fabric.api import task, env
 from warnings import warn
 
-import default_settings
+from awsfabrictasks import default_settings
 
 __all__ = ['Settings', 'print_settings', 'default_settings']
 
