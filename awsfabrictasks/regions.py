@@ -3,7 +3,7 @@ from __future__ import print_function
 from fabric.api import task
 from boto.ec2 import regions, connect_to_region
 
-from conf import awsfab_settings
+from .conf import awsfab_settings
 
 
 

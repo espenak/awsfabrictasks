@@ -12,15 +12,15 @@ from textwrap import fill
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import parse_bool
-from api import Ec2InstanceWrapper
-from api import wait_for_stopped_state
-from api import wait_for_running_state
-from api import print_ec2_instance
-from api import Ec2LaunchInstance
-from api import ec2_rsync_upload
-from api import ec2_rsync_upload_command
-from api import ec2_rsync_download
-from api import ec2_rsync_download_command
+from .api import Ec2InstanceWrapper
+from .api import wait_for_stopped_state
+from .api import wait_for_running_state
+from .api import print_ec2_instance
+from .api import Ec2LaunchInstance
+from .api import ec2_rsync_upload
+from .api import ec2_rsync_upload_command
+from .api import ec2_rsync_download
+from .api import ec2_rsync_download_command
 
 
 
