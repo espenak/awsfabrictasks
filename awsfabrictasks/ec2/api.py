@@ -435,7 +435,12 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
                 value = instance.__dict__['_' + attrname]
             except KeyError:
                 value = '**key "{k}" and "_{k}" missing**'.format(k=attrname)
-        if not isinstance(value, (str, unicode, bool, int)):
+        if not isinstance(value, (str, bool, int)):
+            try:
+                if isinstance(value, unicode):
+                    break
+            except:
+                pass
             value = pformat(value, indent=indentspaces+3)
         print('{indent}{attrname}: {value}'.format(**vars()))
 

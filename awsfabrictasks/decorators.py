@@ -3,6 +3,12 @@ from fabric.decorators import _wrap_as_new
 from .ec2.api import Ec2InstanceWrapper
 
 
+try:
+    unicode = unicode
+except NameError:
+    basestring = (str, bytes)
+    
+
 def _list_annotating_decorator(attribute, *values):
     def attach_list(func):
         @wraps(func)
