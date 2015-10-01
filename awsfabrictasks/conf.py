@@ -1,10 +1,11 @@
+from __future__ import print_function
 import sys
 from os.path import expanduser, join, exists, dirname
 from pprint import pprint
 from fabric.api import task, env
 from warnings import warn
 
-import default_settings
+from awsfabrictasks import default_settings
 
 __all__ = ['Settings', 'print_settings', 'default_settings']
 
@@ -55,7 +56,7 @@ class Settings(object):
 
         :raise ValueError: If any of the keys in ``settings`` is not uppercase.
         """
-        for key, value in settings.iteritems():
+        for key, value in settings.items():
             if not self._is_setting(key):
                 raise ValueError('Settings must be all uppercase, and they can not begin with userscore (``_``).')
             setattr(self, key, value)
@@ -73,7 +74,7 @@ class Settings(object):
         Get all settings (uppercase attributes on this object) as a dict.
         """
         dct = {}
-        for attrname, value in self.__dict__.iteritems():
+        for attrname, value in self.__dict__.items():
             if attrname.upper() == attrname:
                 dct[attrname] = value
         return dct
@@ -121,4 +122,4 @@ def print_default_settings():
     Print ``default_settings.py``.
     """
     path = join(dirname(default_settings.__file__), 'default_settings.py')
-    print open(path).read()
+    print(open(path).read())

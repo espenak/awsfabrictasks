@@ -1,6 +1,8 @@
 """
 General tasks for AWS management.
 """
+from __future__ import print_function
+
 from pprint import pformat, pprint
 from boto.ec2 import connect_to_region
 from fabric.api import task, abort, local, env
@@ -10,15 +12,15 @@ from textwrap import fill
 from awsfabrictasks.conf import awsfab_settings
 from awsfabrictasks.utils import force_slashend
 from awsfabrictasks.utils import parse_bool
-from api import Ec2InstanceWrapper
-from api import wait_for_stopped_state
-from api import wait_for_running_state
-from api import print_ec2_instance
-from api import Ec2LaunchInstance
-from api import ec2_rsync_upload
-from api import ec2_rsync_upload_command
-from api import ec2_rsync_download
-from api import ec2_rsync_download_command
+from .api import Ec2InstanceWrapper
+from .api import wait_for_stopped_state
+from .api import wait_for_running_state
+from .api import print_ec2_instance
+from .api import Ec2LaunchInstance
+from .api import ec2_rsync_upload
+from .api import ec2_rsync_upload_command
+from .api import ec2_rsync_download
+from .api import ec2_rsync_download_command
 
 
 
@@ -50,8 +52,8 @@ def ec2_rsync_download_dir(remote_dir, local_dir, rsync_args='-av', noconfirm=Fa
                   rsync_args=rsync_args)
     if not parse_bool(noconfirm):
         instancewrapper = Ec2InstanceWrapper.get_from_host_string()
-        print 'Are you sure you want to run:'
-        print '   ', ec2_rsync_download_command(instancewrapper, **kwargs)
+        print('Are you sure you want to run:')
+        print('   ', ec2_rsync_download_command(instancewrapper, **kwargs))
         if not confirm('Proceed?'):
             abort('Aborted')
     ec2_rsync_download(**kwargs)
@@ -76,8 +78,8 @@ def ec2_rsync_upload_dir(local_dir, remote_dir, rsync_args='-av', noconfirm=Fals
                   rsync_args=rsync_args)
     if not parse_bool(noconfirm):
         instancewrapper = Ec2InstanceWrapper.get_from_host_string()
-        print 'Are you sure you want to run:'
-        print '   ', ec2_rsync_upload_command(instancewrapper, **kwargs)
+        print('Are you sure you want to run:')
+        print('   ', ec2_rsync_upload_command(instancewrapper, **kwargs))
         if not confirm('Proceed?'):
             abort('Aborted')
     ec2_rsync_upload(**kwargs)
@@ -149,9 +151,9 @@ def ec2_start_instance(nowait=False):
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     instancewrapper.instance.start()
     if nowait:
-        print ('Starting: {id}. This is an asynchronous operation. Use '
+        print(('Starting: {id}. This is an asynchronous operation. Use '
                 '``ec2_list_instances`` or the aws dashboard to check the status of '
-                'the operation.').format(id=instancewrapper['id'])
+                'the operation.').format(id=instancewrapper['id']))
     else:
         wait_for_running_state(instancewrapper['id'])
 
@@ -166,9 +168,9 @@ def ec2_stop_instance(nowait=False):
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
     instancewrapper.instance.stop()
     if nowait:
-        print ('Stopping: {id}. This is an asynchronous operation. Use '
+        print(('Stopping: {id}. This is an asynchronous operation. Use '
                 '``ec2_list_instances`` or the aws dashboard to check the status of '
-                'the operation.').format(id=instancewrapper['id'])
+                'the operation.').format(id=instancewrapper['id']))
     else:
         wait_for_stopped_state(instancewrapper['id'])
 
@@ -185,7 +187,7 @@ def ec2_print_instance(full=False):
         to ``False``.
     """
     instancewrapper = Ec2InstanceWrapper.get_from_host_string()
-    print 'Instance:', _get_instanceident(instancewrapper.instance)
+    print('Instance:', _get_instanceident(instancewrapper.instance))
     print_ec2_instance(instancewrapper.instance, full=full)
 
 @task
@@ -201,16 +203,16 @@ def ec2_list_instances(region=awsfab_settings.DEFAULT_REGION, full=False):
     conn = connect_to_region(region_name=region, **awsfab_settings.AUTH)
 
     for reservation in conn.get_all_instances():
-        print
-        print 'id:', reservation.id
-        print '   owner_id:', reservation.owner_id
-        print '   groups:'
+        print()
+        print('id:', reservation.id)
+        print('   owner_id:', reservation.owner_id)
+        print('   groups:')
         for group in reservation.groups:
-            print '      - {name} (id:{id})'.format(**group.__dict__)
-        print '   instances:'
+            print('      - {name} (id:{id})'.format(**group.__dict__))
+        print('   instances:')
         for instance in reservation.instances:
             attrnames = None
-            print '      -', _get_instanceident(instance)
+            print('      -', _get_instanceident(instance))
             print_ec2_instance(instance, full=full, indentspaces=11)
 
 

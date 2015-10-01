@@ -1,3 +1,5 @@
+from __future__ import print_function, unicode_literals
+
 from os.path import exists, join, expanduser, abspath
 from warnings import warn
 from pprint import pformat
@@ -13,11 +15,14 @@ def zipit(ss):
     of the zipped ss input.
     Note(using zlib alone is not sufficient - we need a zipfile structure)
     """
-    import StringIO
+    try:
+        from io import BytesIO as StringIO
+    except ImportError:
+        from StringIO import StringIO
     import gzip
-    out = StringIO.StringIO()
-    f = gzip.GzipFile(fileobj=out, mode='w')
-    f.write(ss)
+    out = StringIO()
+    f = gzip.GzipFile(fileobj=out, mode='wb')
+    f.write(ss.encode('utf-8'))
     f.close()
     return out.getvalue()
 
@@ -289,7 +294,7 @@ class Ec2InstanceWrapper(object):
         connection = connect_to_region(region_name=region, **awsfab_settings.AUTH)
         if not connection:
             raise Ec2RegionConnectionError(region)
-        tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.iteritems()))
+        tags = dict((('tag:%s' % oldk, v) for (oldk, v) in tags.items()))
         reservations = connection.get_all_instances(filters=tags)
         if len(reservations) == 0:
             return []
@@ -375,17 +380,17 @@ def wait_for_state(instanceid, state_name, sleep_intervals=[15, 5], last_sleep_r
     region, instanceid = parse_instanceid(instanceid)
     sleep_intervals.extend([sleep_intervals[-1] for x in xrange(last_sleep_repeat)])
     max_wait_sec = sum(sleep_intervals)
-    print 'Waiting for {instanceid} to change state to: "{state_name}". Will try for {max_wait_sec}s.'.format(**vars())
+    print('Waiting for {instanceid} to change state to: "{state_name}". Will try for {max_wait_sec}s.'.format(**vars()))
 
     sleep_intervals_len = len(sleep_intervals)
     for index, sleep_sec in enumerate(sleep_intervals):
         instancewrapper = Ec2InstanceWrapper.get_by_instanceid(instanceid)
         current_state_name = instancewrapper['state']
         if current_state_name == state_name:
-            print '.. OK'
+            print('.. OK')
             return
         index_n1 = index + 1
-        print '.. Current state: "{current_state_name}". Next poll ({index_n1}/{sleep_intervals_len}) for "{state_name}"-state in {sleep_sec}s.'.format(**vars())
+        print('.. Current state: "{current_state_name}". Next poll ({index_n1}/{sleep_intervals_len}) for "{state_name}"-state in {sleep_sec}s.'.format(**vars()))
         sleep(sleep_sec)
     raise WaitForStateError('Desired state, "{state_name}", not achieved in {max_wait_sec}s.'.format(**vars()))
 
@@ -430,9 +435,14 @@ def print_ec2_instance(instance, full=False, indentspaces=3):
                 value = instance.__dict__['_' + attrname]
             except KeyError:
                 value = '**key "{k}" and "_{k}" missing**'.format(k=attrname)
-        if not isinstance(value, (str, unicode, bool, int)):
+        if not isinstance(value, (str, bool, int)):
+            try:
+                if isinstance(value, unicode):
+                    break
+            except:
+                pass
             value = pformat(value, indent=indentspaces+3)
-        print '{indent}{attrname}: {value}'.format(**vars())
+        print('{indent}{attrname}: {value}'.format(**vars()))
 
 
 
@@ -507,13 +517,13 @@ class Ec2LaunchInstance(object):
         not confirm the choices.
         """
         from textwrap import fill
-        print fill('Are you sure you want to launch (create) the following new instances '
-                   'with the following settings and tags?', 80)
-        print '-' * 80
+        print(fill('Are you sure you want to launch (create) the following new instances '
+                   'with the following settings and tags?', 80))
+        print('-' * 80)
         for launcher in launchers:
-            print
-            print launcher.prettyformat()
-        print '-' * 80
+            print()
+            print(launcher.prettyformat())
+        print('-' * 80)
         Ec2LaunchInstance._confirm('Create instances')
 
     @staticmethod
@@ -565,14 +575,14 @@ class Ec2LaunchInstance(object):
 
         :return: The user-provided configname.
         """
-        print self.configname_help
-        print '-' * 80
+        print(self.configname_help)
+        print('-' * 80)
         fmt = '{0:>30} | {1}'
-        print fmt.format('NAME', 'DESCRIPTION')
-        for configname, config in awsfab_settings.EC2_LAUNCH_CONFIGS.iteritems():
+        print(fmt.format('NAME', 'DESCRIPTION'))
+        for configname, config in awsfab_settings.EC2_LAUNCH_CONFIGS.items():
             description = config.get('description', '')
-            print fmt.format(configname, description)
-        print '-' * 80
+            print(fmt.format(configname, description))
+        print('-' * 80)
         configname = raw_input('Type name of config: ').strip()
         return configname
 
@@ -597,7 +607,7 @@ class Ec2LaunchInstance(object):
         import sys
         name = self.get_all_tags().get('Name')
         if name:
-            print
+            print()
             sys.stdout.write('Making sure no EC2 instance with Name={0} exists...'.format(name))
             sys.stdout.flush()
             try:
@@ -606,8 +616,8 @@ class Ec2LaunchInstance(object):
                 pass
             else:
                 abort('An instance named {name} already exists.'.format(name=name))
-            print 'OK'
-            print
+            print('OK')
+            print()
 
     def create_config_ask_if_none(self):
         """
@@ -659,11 +669,11 @@ class Ec2LaunchInstance(object):
         not confirm the choices.
         """
         from textwrap import fill
-        print fill('Are you sure you want to launch (create) a new instance '
-                   'with the following settings and tags?', 80)
-        print '-' * 80
-        print self.prettyformat()
-        print '-' * 80
+        print(fill('Are you sure you want to launch (create) a new instance '
+                   'with the following settings and tags?', 80))
+        print('-' * 80)
+        print(self.prettyformat())
+        print('-' * 80)
         Ec2LaunchInstance._confirm('Create instance')
 
     def run_instance(self):
@@ -688,11 +698,11 @@ class Ec2LaunchInstance(object):
         except EC2ResponseError:
             if retries > self.tag_retry_count:
                 raise
-            print ('Got EC2ResponseError while adding tag to {id}. Retrying in '
-                   '{sec} seconds...').format(id=instance.id, sec=self.tag_retry_sleep)
+            print(('Got EC2ResponseError while adding tag to {id}. Retrying in '
+                   '{sec} seconds...').format(id=instance.id, sec=self.tag_retry_sleep))
             time.sleep(self.tag_retry_sleep)
             self._add_tag(instance, tagname, value, retries=retries+1)
 
     def _add_tags(self, instance):
-        for tagname, value in self.get_all_tags().iteritems():
+        for tagname, value in self.get_all_tags().items():
             self._add_tag(instance, tagname, value)

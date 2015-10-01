@@ -30,7 +30,7 @@ def getLoglevelFromString(loglevelstring):
     """
     try:
         return loglevel_stringmap[loglevelstring]
-    except KeyError, e:
+    except KeyError as e:
         raise InvalidLogLevel('Invalid loglevel: {0}'.format(loglevelstring))
 
 def configureStreamLogger(loggername, level):

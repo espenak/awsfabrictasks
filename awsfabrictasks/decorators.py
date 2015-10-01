@@ -3,6 +3,12 @@ from fabric.decorators import _wrap_as_new
 from .ec2.api import Ec2InstanceWrapper
 
 
+try:
+    unicode = unicode
+except NameError:
+    basestring = (str, bytes)
+    
+
 def _list_annotating_decorator(attribute, *values):
     def attach_list(func):
         @wraps(func)
@@ -25,13 +31,14 @@ def ec2instance(nametag=None, instanceid=None, tags=None, region=None):
     Wraps the decorated function to execute as if it had been invoked with
     ``--ec2names`` or ``--ec2ids``.
     """
+    instancewrappers = []
     if instanceid:
-        instancewrappers = [Ec2InstanceWrapper.get_by_instanceid(instanceid)]
-    elif nametag:
-        instancewrappers = [Ec2InstanceWrapper.get_by_nametag(nametag)]
-    elif tags:
-        instancewrappers = Ec2InstanceWrapper.get_by_tagvalue(tags, region)
-    else:
+        instancewrappers += [Ec2InstanceWrapper.get_by_instanceid(instanceid)]
+    if nametag:
+        instancewrappers += [Ec2InstanceWrapper.get_by_nametag(nametag)]
+    if tags:
+        instancewrappers += Ec2InstanceWrapper.get_by_tagvalue(tags, region)
+    if not (instanceid or nametag or tags):
         raise ValueError('nametag, instanceid, or tags must be supplied.')
 
     return _list_annotating_decorator('hosts', [instancewrapper['public_dns_name']

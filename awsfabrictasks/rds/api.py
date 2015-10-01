@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from pprint import pformat
 from boto.rds import connect_to_region
 
@@ -86,7 +88,7 @@ def print_rds_instance(dbinstance, full=False, indentspaces=0):
     :param indentspaces: Number of spaces to indent each line in the output.
     """
     indent = ' ' * indentspaces
-    print '{indent}id={id}:'.format(indent=indent, id=dbinstance.id)
+    print('{indent}id={id}:'.format(indent=indent, id=dbinstance.id))
     indent = ' ' * (indentspaces + 3)
     if full:
         attrnames = sorted(dbinstance.__dict__.keys())
@@ -99,4 +101,4 @@ def print_rds_instance(dbinstance, full=False, indentspaces=0):
         value = dbinstance.__dict__[attrname]
         if not isinstance(value, (str, unicode, bool, int)):
             value = pformat(value)
-        print '{indent}{attrname}: {value}'.format(**vars())
+        print('{indent}{attrname}: {value}'.format(**vars()))

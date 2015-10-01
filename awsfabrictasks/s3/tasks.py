@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from fabric.api import task, abort
 from fabric.contrib.console import confirm
 from os import linesep, remove
@@ -60,8 +62,8 @@ def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
         abort('Invalid style: {0}. Use one of {1}'.format(style, ','.join(styles)))
     if style == 'compact':
         formatstring = '{name:<70} {size:<10} {last_modified:<25} {mode}'
-        print formatstring.format(name='NAME', size='SIZE', last_modified='LAST MODIFIED',
-                                  mode='MODE')
+        print(formatstring.format(name='NAME', size='SIZE', last_modified='LAST MODIFIED',
+                                  mode='MODE'))
     elif style == 'verbose':
         formatstring = '{linesep}'.join(('name: {name}',
                                          '    size: {size}',
@@ -76,7 +78,7 @@ def s3_ls(bucketname, prefix='', search=None, match=None, style='compact',
     formatter = lambda key: formatstring.format(linesep=linesep, **key.__dict__)
     for line in iter_bucketcontents(bucket, prefix=prefix, match=match,
                                     delimiter=delimiter, formatter=formatter):
-        print line
+        print(line)
 
 @task
 def s3_listbuckets():
@@ -86,12 +88,12 @@ def s3_listbuckets():
     connectionwrapper = S3ConnectionWrapper.get_connection()
     for bucket in connectionwrapper.connection.get_all_buckets():
         loggingstatus = bucket.get_logging_status()
-        print '{0}:'.format(bucket.name)
-        print '   location:', bucket.get_location()
-        print '   loggingstatus:'
-        print '      enabled:', loggingstatus.target != None
-        print '      prefix:', loggingstatus.prefix
-        print '      grants:', loggingstatus.grants
+        print('{0}:'.format(bucket.name))
+        print('   location:', bucket.get_location())
+        print('   loggingstatus:')
+        print('      enabled:', loggingstatus.target != None)
+        print('      prefix:', loggingstatus.prefix)
+        print('      grants:', loggingstatus.grants)
 
 
 @task
@@ -108,7 +110,7 @@ def s3_createfile(bucketname, keyname, contents, overwrite=False):
     s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_string(contents, overwrite)
-    except S3FileExistsError, e:
+    except S3FileExistsError as e:
         abort(str(e))
 
 
@@ -127,7 +129,7 @@ def s3_uploadfile(bucketname, keyname, localfile, overwrite=False):
     s3file = S3File.raw(bucket, keyname)
     try:
         s3file.set_contents_from_filename(localfile, overwrite)
-    except S3FileExistsError, e:
+    except S3FileExistsError as e:
         abort(str(e))
 
 @task
@@ -140,7 +142,7 @@ def s3_printfile(bucketname, keyname):
     """
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     s3file = S3File.raw(bucket, keyname)
-    print s3file.get_contents_as_string()
+    print(s3file.get_contents_as_string())
 
 @task
 def s3_downloadfile(bucketname, keyname, localfile, overwrite=False):
@@ -157,7 +159,7 @@ def s3_downloadfile(bucketname, keyname, localfile, overwrite=False):
         abort('Local file exists: {0}'.format(localfile))
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     s3file = S3File.raw(bucket, keyname)
-    print s3file.get_contents_to_filename()
+    print(s3file.get_contents_to_filename())
 
 @task
 def s3_delete(bucketname, keyname, noconfirm=False):
@@ -191,7 +193,7 @@ def s3_is_same_file(bucketname, keyname, localfile):
     localfile = expanduser(localfile)
     bucket = S3ConnectionWrapper.get_bucket_using_pattern(bucketname)
     s3file = S3File.from_head(bucket, keyname)
-    print s3file.etag_matches_localfile(localfile)
+    print(s3file.etag_matches_localfile(localfile))
 
 
 @task
