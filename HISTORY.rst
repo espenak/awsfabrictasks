@@ -2,6 +2,14 @@ History
 =======
 
 
+Version 1.3.0b1
+---------------
+Whats new?
+
+- Python 3 support.
+  Thanks to João Miguel Neves for submitting this
+  patch (https://github.com/espenak/awsfabrictasks/pull/24).
+
 Version 1.2.0
 -------------
 
